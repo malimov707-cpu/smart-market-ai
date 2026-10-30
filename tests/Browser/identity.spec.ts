@@ -1,0 +1,58 @@
+import { expect, test } from '@playwright/test';
+
+test('owner completes catalog, offer comparison and organization invitation workflow', async ({ page }, info) => {
+    const platform = info.project.name.startsWith('desktop') ? 'desktop' : 'mobile';
+    await page.goto('/login');
+    const login = page.getByRole('form', { name: 'Hisobga kirish' });
+    await login.getByLabel('Email', { exact: true }).fill(`${platform}@example.test`);
+    await page.getByRole('form', { name: 'Hisobga kirish' }).getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
+    await page.getByRole('button', { name: 'Kirish', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Umumiy ko‘rinish', exact: true })).toBeVisible();
+    await page.goto('/products');
+    await page.getByRole('button', { name: 'Yangi yozuv' }).click();
+    await page.getByLabel('Mahsulot nomi', { exact: true }).fill('AUTOMATED TEST Flour');
+    await page.getByLabel('SKU', { exact: true }).fill(`BROWSER-${platform}`);
+    await page.getByRole('button', { name: 'Saqlash', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Mahsulot qo‘shildi');
+    await page.goto('/suppliers');
+    await page.getByRole('button', { name: 'Yangi yozuv' }).click();
+    await page.getByLabel('Nomi', { exact: true }).fill('AUTOMATED TEST Supplier');
+    await page.getByRole('button', { name: 'Saqlash', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Yetkazib beruvchi qo‘shildi');
+    await page.goto('/offers');
+    await page.getByRole('button', { name: 'Yangi yozuv' }).click();
+    await page.getByRole('combobox', { name: 'Mahsulot', exact: true }).selectOption({ label: 'AUTOMATED TEST Flour' });
+    await page.getByRole('combobox', { name: 'Yetkazib beruvchi', exact: true }).selectOption({ label: 'AUTOMATED TEST Supplier' });
+    await page.getByLabel('Qadoq narxi', { exact: true }).fill('100.25');
+    await page.getByLabel('Qadoq miqdori', { exact: true }).fill('2');
+    await page.getByLabel('Yetkazish narxi (noma’lum bo‘lsa bo‘sh) (ixtiyoriy)', { exact: true }).fill('5.50');
+    await page.getByLabel('Kuzatuv vaqti (+05:00 bilan kiriting)', { exact: true }).fill(new Date(Date.now() - 60000).toISOString());
+    await page.getByLabel('Manba / hujjat raqami', { exact: true }).fill('AUTOMATED TEST evidence');
+    await page.getByRole('button', { name: 'Saqlash', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Taklif saqlandi');
+    await page.goto('/comparison');
+    await page.getByRole('combobox', { name: 'Mahsulot', exact: true }).selectOption({ label: 'AUTOMATED TEST Flour (kg)' });
+    await page.getByRole('button', { name: 'Takliflarni solishtirish' }).click();
+    await expect(page.getByText('1 008 UZS', { exact: true })).toBeVisible();
+    await expect(page.getByText('Yetkazib beruvchi tasdiqlanmagan', { exact: true })).toBeVisible();
+    await page.goto('/settings');
+    await page.getByLabel('Email', { exact: true }).fill(`invited-${platform}@example.test`);
+    await page.getByRole('button', { name: 'Email orqali taklif yuborish' }).click();
+    await expect(page.getByRole('status')).toContainText('mail transportiga topshirildi');
+    await expect(page.getByText(`invited-${platform}@example.test`, { exact: true })).toBeVisible();
+    await page.goto('/account');
+    await expect(page.getByRole('heading', { name: 'Hisob va xavfsizlik' })).toBeVisible();
+    await expect(page.getByText('Joriy sessiya', { exact: true })).toBeVisible();
+});
+
+test('new registrations must verify their email before opening the workspace', async ({ page }, info) => {
+    await page.goto('/register');
+    await page.getByLabel('Ismingiz', { exact: true }).fill('Browser Registration Test');
+    await page.getByLabel('Tashkilot nomi', { exact: true }).fill('AUTOMATED TEST registration');
+    await page.getByLabel('Email', { exact: true }).fill(`register-${info.project.name}@example.test`);
+    await page.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
+    await page.getByLabel('Parolni tasdiqlang', { exact: true }).fill('BrowserPassword123456');
+    await page.getByRole('button', { name: 'Hisob yaratish', exact: true }).click();
+    await expect(page).toHaveURL(/verify-email/);
+    await expect(page.getByRole('button', { name: 'Tasdiqlash xatini qayta yuborish' })).toBeVisible();
+});

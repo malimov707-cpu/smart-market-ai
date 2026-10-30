@@ -1,0 +1,8 @@
+import { Link } from '@inertiajs/react';
+import Layout from '../Components/Layout';
+import { SaveForm, Pager } from '../Components/Forms';
+import { date, type Pagination } from '../types';
+type Batch = { id: number; created_at: string; expires_at: string; completed_at: string | null; summary: { created: number; duplicates: number } | null };
+export default function ProductImports({ imports }: { imports: Pagination<Batch> }) {
+    return <Layout title="Mahsulot CSV importi" action={<Link href="/products" className="button secondary">Katalog</Link>}><div className="grid gap-6"><section className="panel"><h2>1. Fayl yuklash</h2><p>CSV UTF-8, 2 MB va 500 satrgacha. Ustunlarni keyingi sahifada moslaysiz; import faqat xatolar tuzatilgach, tasdiqdan keyin ishlaydi. Mavjud SKU o‘zgartirilmaydi. Asosiy ustunlar: name,sku,unit; ixtiyoriy: category,description,barcode,package_quantity,package_unit,aliases,variant_attributes,parent_sku. Aliases va variant_attributes JSON array; parent_sku faol asosiy mahsulot sifatida avval kiritilgan bo‘lsin.</p><SaveForm action="/catalog/product-imports" label="Preview yaratish"><label className="field"><span>Mahsulot CSV fayli</span><input type="file" name="file" accept=".csv" required /></label></SaveForm></section><section className="panel"><h2>Import tarixi</h2>{imports.data.map(batch => <p key={batch.id}><Link href={`/catalog/product-imports/${batch.id}`}>#{batch.id} · {date(batch.created_at)} · {batch.completed_at ? `${batch.summary?.created} yaratildi / ${batch.summary?.duplicates} takror` : 'Preview / tasdiq kutilmoqda'}</Link></p>)}{imports.data.length === 0 && <p>Importlar hali yo‘q.</p>}<Pager page={imports} /></section></div></Layout>;
+}

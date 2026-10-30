@@ -1,0 +1,104 @@
+import { expect, test, type Page } from '@playwright/test';
+import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+async function login(page: Page, email: string) {
+    await page.goto('/login'); const form = page.getByRole('form', { name: 'Hisobga kirish' });
+    await form.getByLabel('Email', { exact: true }).fill(email);
+    await form.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
+    await form.getByRole('button', { name: 'Kirish', exact: true }).click();
+    await expect(page).toHaveURL(/dashboard/);
+}
+async function logout(page: Page) {
+    const menu = page.getByRole('button', { name: 'Menyuni ochish' }); if (await menu.isVisible()) await menu.click();
+    await page.getByRole('button', { name: 'Chiqish', exact: true }).click(); await expect(page).toHaveURL(/login/);
+}
+test('catalog metadata images variants archive and independent supplier verification', async ({ page }, info) => {
+    test.setTimeout(60000); const platform=info.project.name.startsWith('desktop')?'desktop':'mobile';
+    page.on('dialog',dialog=>dialog.accept());
+    const errors: string[]=[]; page.on('pageerror',error=>errors.push(error.message));
+    await login(page,`manager-${platform}@example.test`);
+    await page.goto('/products'); await page.getByRole('button',{name:'Yangi yozuv'}).click();
+    await page.getByLabel('Mahsulot nomi',{exact:true}).fill('PHASE2 Flour');
+    await page.getByLabel('SKU',{exact:true}).fill(`PHASE2-${platform}`);
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Mahsulot qo‘shildi');
+    await page.getByRole('link',{name:'PHASE2 Flour',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'PHASE2 Flour',exact:true})).toBeVisible();
+    await page.getByLabel('Mahsulot nomi',{exact:true}).fill('PHASE2 Flour Updated');
+    await page.getByLabel('Aliases (har satrda bittadan)',{exact:true}).fill('PHASE2 Alias');
+    await page.getByRole('textbox',{name:/Barcode/}).fill(platform==='desktop'?'9876543210001':'9876543210002');
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Mahsulot yangilandi');
+    await expect(page.getByRole('heading',{name:'PHASE2 Flour Updated',exact:true})).toBeVisible();
+    await page.getByLabel('Rasm (PNG/JPEG/WebP, 2 MB)',{exact:true}).setInputFiles(join(dirname(process.env.SMART_MARKET_BROWSER_DB!),'fixture.png'));
+    await page.getByRole('button',{name:'Fayl yuklash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Fayl xavfsiz saqlandi');
+    await expect(page.getByAltText('fixture.png')).toBeVisible();
+    await page.getByRole('button',{name:'Arxivlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('arxivlandi');
+    await page.getByRole('button',{name:'Arxivdan tiklash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('tiklandi');
+    await page.goto('/products'); await page.getByRole('button',{name:'Yangi yozuv'}).click();
+    await page.getByLabel('Mahsulot nomi',{exact:true}).fill('PHASE2 Variant'); await page.getByLabel('SKU',{exact:true}).fill(`PHASE2-VARIANT-${platform}`);
+    await page.getByRole('combobox',{name:'Asosiy mahsulot (variant uchun)',exact:true}).selectOption({label:'PHASE2 Flour Updated'});
+    await page.getByRole('button',{name:'Attribut qo‘shish'}).click();
+    await page.getByLabel('Attribut nomi',{exact:true}).fill('Grade'); await page.getByLabel('Attribut qiymati',{exact:true}).fill('A');
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Mahsulot qo‘shildi');
+    await page.goto('/suppliers'); await page.getByRole('button',{name:'Yangi yozuv'}).click();
+    await page.getByLabel('Nomi',{exact:true}).fill('PHASE2 Supplier'); await page.getByRole('button',{name:'Saqlash',exact:true}).click();
+    await expect(page.getByRole('status')).toContainText('Yetkazib beruvchi qo‘shildi'); await page.getByRole('link',{name:'PHASE2 Supplier',exact:true}).click();
+    await expect(page).toHaveURL(/suppliers\/\d+$/);
+    const supplierUrl=page.url();
+    await page.getByLabel('Hujjat (PDF/rasm, 5 MB)',{exact:true}).setInputFiles({name:'phase2-evidence.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nAUTOMATED TEST ONLY')});
+    await page.getByRole('button',{name:'Fayl yuklash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Fayl xavfsiz saqlandi');
+    await page.getByRole('checkbox',{name:/phase2-evidence.pdf/}).check();
+    await page.getByLabel('Qaror yoki ariza asosi (10+ belgi)',{exact:true}).fill('Actual test registration evidence supplied for independent review.');
+    await page.getByRole('button',{name:'Tekshiruv amalini bajarish'}).click(); await expect(page.getByRole('status')).toContainText('Tekshiruv holati');
+    await logout(page); await login(page,`${platform}@example.test`); await page.goto(supplierUrl);
+    await page.getByRole('combobox',{name:'Amal',exact:true}).selectOption('approve');
+    await page.getByLabel('Qaror yoki ariza asosi (10+ belgi)',{exact:true}).fill('Independently reviewed the test supplier registration document.');
+    await page.getByRole('button',{name:'Tekshiruv amalini bajarish'}).click(); await expect(page.getByRole('status')).toContainText('Tekshiruv holati');
+    await expect(page.getByText(/Tashkilot: verified · Platforma: unverified/)).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+test('product import preview mapping confirmation history and safe export', async ({page},info)=>{
+    const platform=info.project.name.startsWith('desktop')?'desktop':'mobile'; page.on('dialog',dialog=>dialog.accept());
+    await login(page,`${platform}@example.test`); await page.goto('/catalog/product-imports');
+    await page.getByLabel('Mahsulot CSV fayli',{exact:true}).setInputFiles({name:'products.csv',mimeType:'text/csv',buffer:Buffer.from(`Title,Code,Measure\n=1+1,PHASE2-IMPORT-${platform},kg\n`)});
+    await page.getByRole('button',{name:'Preview yaratish'}).click(); await expect(page).toHaveURL(/product-imports\/\d+/);
+    await page.getByRole('combobox',{name:'name',exact:true}).selectOption('0');
+    await page.getByRole('combobox',{name:'sku',exact:true}).selectOption('1');
+    await page.getByRole('combobox',{name:'unit',exact:true}).selectOption('2');
+    await page.getByRole('button',{name:'Mappingni saqlash va tekshirish'}).click(); await expect(page.getByRole('status')).toContainText('Ustunlar mosligi');
+    await expect(page.getByText('Yaratishga tayyor',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Importni tasdiqlash',exact:true}).click(); await expect(page.getByRole('status').filter({hasText:'Yakunlandi:'})).toBeVisible();
+    await page.goto('/products'); const downloadPromise=page.waitForEvent('download'); await page.getByRole('link',{name:'CSV eksport',exact:true}).click();
+    const download=await downloadPromise; const content=await readFile((await download.path())!,'utf8');
+    expect(content).toContain("'=1+1"); expect(content).toContain(`PHASE2-IMPORT-${platform}`);
+});
+
+test('offer-backed feedback and independent dispute moderation', async ({page},info)=>{
+    test.setTimeout(60000); const platform=info.project.name.startsWith('desktop')?'desktop':'mobile';
+    await login(page,`manager-${platform}@example.test`);
+    await page.goto('/products'); await page.getByRole('button',{name:'Yangi yozuv'}).click();
+    await page.getByLabel('Mahsulot nomi',{exact:true}).fill('REVIEW Flour'); await page.getByLabel('SKU',{exact:true}).fill(`REVIEW-${platform}`);
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Mahsulot qo‘shildi');
+    await page.goto('/suppliers'); await page.getByRole('button',{name:'Yangi yozuv'}).click(); await page.getByLabel('Nomi',{exact:true}).fill('REVIEW Supplier');
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Yetkazib beruvchi qo‘shildi');
+    await page.getByRole('link',{name:'REVIEW Supplier',exact:true}).click(); await expect(page).toHaveURL(/suppliers\/\d+$/); const supplierUrl=page.url();
+    await page.goto('/offers'); await page.getByRole('button',{name:'Yangi yozuv'}).click();
+    await page.getByRole('combobox',{name:'Mahsulot',exact:true}).selectOption({label:'REVIEW Flour'});
+    await page.getByRole('combobox',{name:'Yetkazib beruvchi',exact:true}).selectOption({label:'REVIEW Supplier'});
+    await page.getByLabel('Qadoq narxi',{exact:true}).fill('10.00');
+    await page.getByLabel('Kuzatuv vaqti (+05:00 bilan kiriting)',{exact:true}).fill(new Date(Date.now()-60000).toISOString());
+    await page.getByLabel('Manba / hujjat raqami',{exact:true}).fill('AUTOMATED TEST REVIEW EVIDENCE');
+    await page.getByRole('button',{name:'Saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Taklif saqlandi');
+    await page.goto(supplierUrl); const evidence=await page.getByText(/^Offer #\d+ · Product #/).textContent(); const offerId=evidence!.match(/Offer #(\d+)/)![1];
+    await page.getByLabel('Dalil: shu supplier taklifi IDsi',{exact:true}).fill(offerId);
+    await page.getByRole('combobox',{name:'Baho',exact:true}).selectOption('2');
+    await page.getByLabel('Taklif bilan ishlash tajribasi (20+ belgi)',{exact:true}).fill('AUTOMATED TEST: the actual stored offer requires a documented correction.');
+    await page.getByRole('button',{name:'Fikr bildirish',exact:true}).click(); await expect(page.getByRole('status')).toContainText('fikr saqlandi');
+    await page.getByLabel('Dispute asosi (20+ belgi)',{exact:true}).fill('AUTOMATED TEST: please independently inspect the offer evidence.');
+    await page.getByRole('button',{name:'Dispute ochish',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Dispute ochildi');
+    await logout(page); await login(page,`${platform}@example.test`); await page.goto(supplierUrl);
+    await page.getByLabel('Mustaqil qaror va asos (20+ belgi)',{exact:true}).fill('AUTOMATED TEST: independent evidence review supports hiding this feedback.');
+    await page.getByRole('combobox',{name:'Fikr ko‘rinishi',exact:true}).selectOption('1');
+    await page.getByRole('button',{name:'Qarorni saqlash',exact:true}).click(); await expect(page.getByRole('status')).toContainText('Dispute qarori saqlandi');
+    await expect(page.getByText(/Fikr #\d+ · Hal qilingan/)).toBeVisible();
+});
