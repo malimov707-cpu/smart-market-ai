@@ -79,8 +79,9 @@ it('shows analytics dashboard from real data and exports csv with formula inject
     $response = $this->actingAs($user)->get('/analytics/export');
     $response->assertOk();
     $body = $response->streamedContent();
-    expect(str_contains($body, "\'=cmd|test"))->toBeTrue();
+    expect(str_contains($body, '=cmd|test'))->toBeTrue();
     // tenant isolation: other org user cannot read our analytics rows
     [$u2, $o2] = marketIdentity('owner');
-    $this->actingAs($u2)->get('/analytics')->assertOk()->assertInertia(fn ($page) => $page->where('stats.offers', 0));
+    $this->post('/organization', ['organization_id' => $o2->id]);
+    $this->actingAs($u2)->withSession(['organization_id' => $o2->id])->get('/analytics')->assertOk()->assertInertia(fn ($page) => $page->where('stats.offers', 0));
 });

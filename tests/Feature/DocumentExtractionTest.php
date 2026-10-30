@@ -65,7 +65,7 @@ it('validates structured extraction confidence and usage before explicit human c
         } catch (Throwable) {
         }
 
-return Http::response(extractionOutput());
+        return Http::response(extractionOutput());
     }]);
     [$user,$org] = marketIdentity();
     $batch = app(ManageImports::class)->upload($user, $org, UploadedFile::fake()->createWithContent('TEST.pdf', "%PDF-1.4\nTEST ONLY fixture"), ['type' => 'products', 'timezone' => 'UTC']);

@@ -11,12 +11,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (DB::getDriverName() !== 'sqlite') { return; }
+        if (DB::getDriverName() !== 'sqlite') {
+            return;
+        }
         Schema::table('offers', function (Blueprint $table): void {
             $table->text('price_exact')->nullable();
             $table->text('delivery_fee_exact')->nullable();
         });
-        Schema::table('exchange_rates', function (Blueprint $table): void { $table->text('rate_exact')->nullable(); });
+        Schema::table('exchange_rates', function (Blueprint $table): void {
+            $table->text('rate_exact')->nullable();
+        });
     }
 
     public function down(): void

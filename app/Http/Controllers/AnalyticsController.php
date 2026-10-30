@@ -61,7 +61,7 @@ class AnalyticsController extends Controller
                     ->groupBy('o2.product_id', 'o2.supplier_id');
             })
             ->orderBy('offers.product_id')->orderBy('offers.supplier_id')->orderBy('offers.observed_at')
-            ->select('offers.id', 'offers.product_id', 'offers.supplier_id', 'offers.price', 'offers.price_exact', 'offers.currency', 'offers.observed_at', 'products.name as product_name', 'products.category')
+            ->select('offers.id', 'offers.product_id', 'offers.supplier_id', 'offers.price', 'offers.currency', 'offers.observed_at', 'products.name as product_name', 'products.category')
             ->limit(1000)->get();
 
         $byProduct = $rows->groupBy('product_id')->map(function ($group): array {
@@ -124,7 +124,9 @@ class AnalyticsController extends Controller
                         fputcsv($out, [
                             $this->safeCsv($offer->product_name), $this->safeCsv($offer->product_sku), $this->safeCsv($offer->supplier_name),
                             (string) $offer->price, $offer->currency, $offer->unit, (string) $offer->package_quantity,
-                            $offer->observed_at?->toISOString(), $this->safeCsv($offer->source_reference), $snap['organization']['status'] ?? 'unverified', $snap['platform']['status'] ?? 'unverified',
+                            $offer->observed_at?->toISOString(), $this->safeCsv((string) ($offer->source_reference ?? '')),
+                            ($snap['organization']['status'] ?? $snap['organization_status'] ?? ($snap['organization'] ?? 'unverified')),
+                            ($snap['platform']['status'] ?? $snap['platform_status'] ?? ($snap['platform'] ?? 'unverified')),
                         ]);
                     }
                 });
