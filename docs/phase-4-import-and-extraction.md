@@ -73,3 +73,21 @@ DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 \
 DB_DATABASE=smart_market_phase4_test DB_USERNAME=smart_market_test DB_PASSWORD=... \
 SESSION_DRIVER=array CACHE_STORE=array MAIL_MAILER=array php artisan test --compact
 ```
+
+## Corrective sprint: da’volar chegarasi — 2026-10-31
+
+Oldingi “test bilan kafolatlangan” jumlasi transaction assertionni catch yutgani
+sabab yetarli dalil emas edi. Assertion tashqariga ko‘chirildi, outer test transaction
+baseline’i alohida o‘lchanadi. Default extraction testlari fake HTTP bilan; **live AI
+muvaffaqiyatli tekshirildi degani emas**. Provider hozir unavailable.
+
+RealImportQueueTest alohida PostgreSQL bazasida haqiqiy queue worker subprocesslarini
+ishlatadi. Browser import CSV/XLSX ham actual SQLite queue worker bilan tekshiriladi.
+Persistent worker bo‘lmasa import operational emas. Current UI driver/pending/failed/
+last completionni ko‘rsatadi, heartbeat yo‘qligida worker unknown.
+
+Lease/retry/idempotency regressiyasi bor, ammo cheksiz exactly-once yoki production
+recovery kafolati da’vo qilinmaydi. Physical purge default dry-run; avtomatik
+production retention schedule sozlanmagan. Malware integration point bor,
+scanner unavailable holati clean degani emas. Yakuniy natijalar va xatolar
+critical-quality-sprint.md da.

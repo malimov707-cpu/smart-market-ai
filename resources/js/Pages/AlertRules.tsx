@@ -14,7 +14,7 @@ const scopeLabels: Record<string, string> = { product: 'Mahsulot', supplier: 'Ye
 
 export default function AlertRules({ rules, eventTypes, canManage }: { rules: Rule[]; eventTypes: string[]; canManage: boolean }) {
     return <Layout title="Ogohlantirish qoidalari" action={<Link href="/notifications" className="button secondary">Bildirishnomalar</Link>}>
-        <p className="page-description">Qoidalar faqat sizning tashkilotingiz ma’lumotlariga tegishli. Bir xil voqea uchun takroriy bildirishnoma yaratilmaydi (idempotent).</p>
+        <p className="page-description">Qoidalar faqat sizning tashkilotingiz ma’lumotlariga tegishli. Har qoida shaxsiy obuna: faqat uning egasi oladi. Global — mahsulotlar qamrovi, tashkilotga broadcast emas. Email kanalini tanlamaslik — emaildan voz kechish. Bir xil voqea uchun takroriy bildirishnoma yaratilmaydi (idempotent).</p>
         {canManage && <section className="panel">
             <h2>Yangi qoida</h2>
             <Form action="/notifications/rules" method="post" resetOnSuccess>
@@ -24,13 +24,13 @@ export default function AlertRules({ rules, eventTypes, canManage }: { rules: Ru
                         <Field name="event_type" label="Voqea turi">{eventTypes.map(t => <option key={t} value={t}>{eventTypeLabels[t] ?? t}</option>)}</Field>
                         <Field name="scope_type" label="Qamrov">
                             <option value="global">Barcha mahsulotlar</option><option value="product">Bitta mahsulot</option>
-                            <option value="supplier">Bitta yetkazib beruvchi</option><option value="category">Kategoriya</option>
+                            <option value="supplier">Bitta yetkazib beruvchi</option>
                         </Field>
                         <Field name="scope_id" label="Scope ID (mahsulot/supplier id yoki kategoriya nomi)" type="number" min="1" required={false} />
                         <Field name="threshold_kind" label="Chegara turi"><option value="none">Yo‘q</option><option value="percent">Foiz (%)</option><option value="absolute">Absolyut</option></Field>
                         <Field name="threshold_value" label="Chegara qiymati" type="number" step="0.0001" min="0" required={false} />
-                        <Field name="frequency" label="Chastota"><option value="instant">Darhol</option><option value="daily">Kunlik</option></Field>
-                        <Field name="channels" label="Kanal"><option value="app">Ilova ichi</option><option value="email">Email (agar SMTP sozlangan)</option></Field>
+                        <Field name="frequency" label="Chastota"><option value="instant">Darhol</option></Field>
+                        <Field name="channels[]" label="Kanal"><option value="app">Ilova ichi</option><option value="email">Email (agar SMTP sozlangan)</option></Field>
                     </div>
                     {Object.values(errors).map(error => <p className="error" role="alert" key={error}>{error}</p>)}
                     <button className="button primary" disabled={processing}>{processing ? 'Saqlanmoqda…' : 'Qoidani yaratish'}</button>
@@ -48,8 +48,9 @@ export default function AlertRules({ rules, eventTypes, canManage }: { rules: Ru
                     <td>{rule.threshold_kind === 'none' ? '—' : `${rule.threshold_value} (${rule.threshold_kind})`}</td>
                     <td>{rule.enabled ? 'Faol' : 'O‘chirilgan'}</td>
                     <td><Form action={`/notifications/rules/${rule.id}`} method="post">{({ processing }) => <>
-                        <input type="hidden" name="enabled" value={rule.enabled ? '0' : '1'} />
-                        <button className="button secondary small" disabled={processing}>{rule.enabled ? 'O‘chirish' : 'Yoqish'}</button>
+                        <label>Qoida nomini tahrirlash<input aria-label={`Qoida ${rule.id} nomi`} name="name" defaultValue={rule.name}/></label><select aria-label={`Qoida ${rule.id} email sozlamasi`} name="channels[]" defaultValue={rule.channels.includes('email')?'email':'app'}><option value="app">Ilova ichi; email o‘chiq</option><option value="email">Emailga obuna</option></select>
+                        <select name="enabled" aria-label={`Qoida ${rule.id} holati`} defaultValue={rule.enabled?'1':'0'}><option value="1">Faol</option><option value="0">O‘chirilgan</option></select>
+                        <button className="button secondary small" disabled={processing}>Saqlash</button>
                     </>}</Form></td>
                 </tr>)}</tbody>
             </table></div>

@@ -1,5 +1,13 @@
 # Xavfsizlik va ruxsatlar
 
+Ops continuation: worker heartbeat private katalogda 0600 atomik JSON; stream hash
+va vaqtgina, payload/user/tenant/credential yo‘q. CLI original path yoki write/read
+exception matnini chiqarmaydi; file va logger xatosi business jobga o‘tmaydi.
+Reader 256 bytedan katta, wrong stream yoki future signalni qabul qilmaydi. Parent
+katalog faqat ishonchli app/operatorga writable bo‘lsin; bu external immutable audit
+yoki host compromise himoyasi emas. Global worker ma’lumoti tenant HTTPga qo‘shilmadi.
+Heartbeat localda opt-in o‘chiq; staging shared volume/ownership real tekshirilsin.
+
 ## Ruxsat matritsasi
 
 | Amal | Owner | Manager | Buyer | Analyst | Auditor |
@@ -133,3 +141,20 @@ log/frontend/reportga chiqmaydi. Error report CSV `safeCell` formula-injection
 himoyasi bilan. Tenant izolyatsiya, unauthorized direct HTTP, evidence access
 va cross-tenant regressiyalar test qilingan. Purge faqat muddati o'tgan,
 tasdiqlanmagan failed/cancelled batchlarga dry-run/execute buyrug'i bilan.
+
+## 2026-10-31 corrective sprint
+
+Alert scope `global` mahsulotlar qamrovi, recipient audience emas. Har obuna faqat
+uning user_id egasiga; listing/update ownership serverda. Active/verified/current
+membership va view huquqi recipientdan talab qilinadi; deactivated/revoked a’zo,
+email channels’dan voz kechgan subscriberga xabar yuborilmaydi. Har recipient alohida
+To bilan yuboriladi. Dedupe SHA-256 tenant+event+reference+user scope’da.
+
+Log/array email `unavailable`; SMTP return bo‘lmasa failed, successful SMTP acceptance
+ham delivery deb talqin qilinmaydi. Generic exception matni yoki credentials logga
+chiqarilmaydi. Worker diagnostikasi faqat batch ID, exception class/code.
+
+Analytics filter product/supplier IDlari tenantda tekshiriladi, review snapshotlar
+exportning har 500-row batchida olinadi. CSV whitespace/BOM-formula himoyasi umumiy
+safeCell bilan. Direct import/file/error report/alert/notification IDOR va auditor
+write regressiyalari QualitySecurityTest’da. Bu targeted regression, pentest emas.

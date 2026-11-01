@@ -77,7 +77,7 @@ class NotificationController extends Controller
         $organization = $request->attributes->get('organization');
         AppNotification::where('organization_id', $organization->id)->where('user_id', $request->user()->id)->unread()
             ->update(['read_at' => now()]);
-        AuditLog::create(['organization_id' => $organization->id, 'user_id' => $request->user()->id, 'action' => 'notifications.read_all']);
+        AuditLog::create(['organization_id' => $organization->id, 'user_id' => $request->user()->id, 'action' => 'notifications.read_all', 'subject_type' => 'user', 'subject_id' => $request->user()->id]);
 
         return back();
     }

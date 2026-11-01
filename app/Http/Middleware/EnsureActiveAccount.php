@@ -14,7 +14,7 @@ class EnsureActiveAccount
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user()?->fresh();
-        if ($user && (! $user->is_active || $user->security_version !== (int) $request->session()->get('security_version', 0))) {
+        if ($user && (! $user->is_active || $user->is_suspended || $user->security_version !== (int) $request->session()->get('security_version', 0))) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

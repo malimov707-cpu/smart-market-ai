@@ -1,5 +1,22 @@
 # Testlash
 
+## Joriy operations continuation — 2026-10-31
+
+```sh
+php artisan test --compact tests/Feature/QueueWorkerHeartbeatTest.php tests/Feature/OperationsPreparationTest.php
+```
+
+**25 passed / 56 assertions / 2.575 s**. Bu ikki fayl DB refresh/migration traitini
+ishlatmaydi. Haqiqiy idle worker testi faqat yangi random private temp katalogdagi
+SQLite fixture `jobs` jadvalini yaratadi; application DBga ulanmaydi. Subprocess
+--max-time=2, timeout=10 s; config cache/storage/mail/key test uchun ajratilgan.
+Private heartbeatni boshqa process o‘qishi va 0 queued job tekshirildi. Temp fayllar
+tozalanadi. Stale/corrupt/future/mismatched/oversized/disabled/IO/logging holatlari
+ham qamralgan. Bu PostgreSQL, supervision reboot yoki staging dalili emas.
+
+Joriy `migrate` taqiqi sabab quyidagi historical full-suite/browser setup buyruqlari
+qayta bajarilmadi. Ular schema/migration ishlatadi; ushbu sprintda ishga tushirmang.
+
 Bazaviy sessiyada 49 test / 533 assertion qayta bajarilib o‘tdi. Ularning hech biri
 o‘chirilmadi. Umumiy fixture yordamchilari `tests/Pest.php` ga ko‘chirildi.
 PostgreSQL expiry testi noqonuniy fixture o‘rniga observationdan keyingi, ayni
@@ -128,3 +145,33 @@ lease), retry/backoff, failed recovery, cancellation, AI unavailable, invalid AI
 chiqishi, confidence, inson approval, unauthorized evidence, tenant izolyatsiya,
 audit tarixi. SQLite suit (default) + PostgreSQL suit (yuqoridagi buyruq) 195/195.
 Chromium desktop + mobile 12/12.
+
+## Corrective sprint — test integrity va real worker
+
+DocumentExtractionTest transaction darajasini HTTP callbackda faqat o‘lchaydi;
+assertion callbackdan tashqarida, LazyRefreshDatabase tashqi transaction baseline’iga
+solishtiriladi. Application catch failure’ni yashira olmaydi. DebugExtractionTest
+endi actual invalid JSON rejection va provider request countni tekshiradi; true-only
+assertion olib tashlandi. Meaningful avvalgi testlar o‘chirilmagan.
+
+QualityAnalyticsTest: supplier-aware ordering/cohort/eligible min-max, invalid newest,
+as-of correction/recording, zero legacy baseline va 2001-observation query/memory.
+AlertDeliveryTest: personal subscribers, opt-out, revoked/deactivated, SMTP failure,
+log unavailable, per-recipient acceptance va cross-tenant dedupe. QualitySecurityTest:
+direct import/file/error/report/notification/rule IDOR, auditor permissions.
+
+RealImportQueueTest default suite’da skip: unga alohida yangi PostgreSQL
+`quality_queue_test` bazasi, wrapping transactionsiz muhit kerak. Test `migrate`
+bajaradi, mavjud biznes bazasini reset qilmaydi. Process env bilan guardlangan baza
+nomi, PDO konfiguratsiyasi va temp private storage qo‘llanadi. Haqiqiy queue worker
+subprocess preparation/failed/manual retry/reparse/confirm/commit/dedupeni tekshiradi.
+`handle()` bevosita chaqirilmaydi. Full suite PostgreSQL CHECKlarni, SQLite esa
+mos kelmaydigan PG-only testlarni skip qiladi. Zero-price legacy testi faqat
+SQLite’da: PG CHECK allaqachon zero price’ni taqiqlaydi.
+
+Playwright setup isolated SQLite queue workerini ham ishga tushiradi; teardown
+faqat saqlangan o‘z PIDini tugatadi. quality.spec desktop/mobile import CSV/XLSX,
+mapping/error/correction/human confirmation, AI unavailable/manual review,
+notification read/preferences hamda analytics/export/date/permissionni tekshiradi.
+Asynchronous sheet response/poll yakunini kutadi; backend revision guard saqlangan.
+Yakuniy sonlar critical-quality-sprint.md/readiness hisobotida.

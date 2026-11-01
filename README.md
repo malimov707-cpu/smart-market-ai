@@ -7,6 +7,11 @@ production-ready deb baholanmaydi.**
 
 ## Lokal ishga tushirish
 
+2026-10-31 ops sprintida mavjud muhit uchun `migrate` yoki destructive DB amali
+bajarilmaydi. Quyidagi boshlang‘ich install/schema yo‘riqnomasi joriy muhitga
+qo‘llanmaydi. [Amaldagi deployment tartibi](docs/deployment.md),
+[operatsion dalillar va blockerlar](docs/production-operations-sprint.md).
+
 PHP 8.4 (BCMath, GD va SQLite/PostgreSQL PDO), Composer va Node 24 kerak.
 Faqat yangi checkout uchun:
 
@@ -94,3 +99,19 @@ Latest/as-of comparison, source/correction tarixi, alohida price review, UZS bas
 va manbali independently approved USD/EUR/RUB rates, exact landed/unit/nominal
 ranking, supplier history/trend va previous-valid price changes. Live rate/OCR/API
 integration ulanmagan. [Hisoblash qoidalari va dalil](docs/phase-3-price-intelligence.md).
+
+## 2026-10-31 sifat sprinti
+
+Mavjud analytics supplier/as-of va personal alert recipient nuqsonlari tuzatildi;
+importlar haqiqiy isolated queue worker bilan tekshiriladi. Barcha biznes fazalari
+tugallangan yoki production-ready deb baholanmaydi. [Sprint dalillari](docs/critical-quality-sprint.md),
+[bildirishnomalar](docs/phase-5-notifications.md), [tahlil](docs/phase-6-analytics.md).
+
+Importlar uchun alohida persistent worker kerak:
+
+```sh
+php artisan queue:work database --queue=imports --sleep=1 --timeout=60 --tries=3
+```
+
+Local log mailer real email yubormaydi. SMTP/live AI, staging/TLS, monitoring,
+backup/restore va load testlar hali tashqi release gate. .env/key o‘zgartirilmagan.

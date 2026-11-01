@@ -1,72 +1,89 @@
 # Davom ettirish rejasi
 
-## Sessiya yakuni — 3-bosqich
+## 2026-10-31 deployment/operations tayyorgarligi
 
-1–2-bosqich imkoniyatlari saqlandi. 3-bosqich price intelligence funksional scope’i
-implement qilindi va ajratilgan muhitlarda tekshirildi:
+Davomi: import worker uchun opt-in private heartbeat implement qilindi. Idle
+iteration/job start signali, throttling va stale/missing/invalid signalda ops failure
+bor. Alohida vaqtinchalik SQLite job jadvali bilan haqiqiy worker subprocess testi
+migratsiyasiz bajarildi; bu production worker o‘rnatilgani degani emas. Lokal flag
+o‘chiq, worker holati unknown. External host/SMTP recipient haqidagi savollar ochiq.
+Yakuniy targeted ops/heartbeat natija: **25 passed / 56 assertions / 2.575 s**;
+Pint/diff passed. Quyidagi 11-test natijasi oldingi ops incrementga tegishli.
 
-- Bounded latest quote per tenant/product/supplier, stable observation/recording/ID
-  tartibi; yangi qimmat/expired quote eski arzon narx bilan almashtirilmaydi.
-- Observation + transaction-time as-of, UTC, subsecond recorded cutoff, append-only
-  correction; price/supplier verification va archive/restore history snapshotlari.
-- Source metadata, submitter/private evidence, alohida independent price review,
-  price.verify platform granti va retirement/replace evidence lock himoyasi.
-- UZS base, manbali history/independent approved USD/EUR/RUB rates; missing/expired
-  rate unavailable. Live FX API integratsiyasi ulanmagan.
-- Exact unit/package/MOQ/excess/delivery/landed calculation; nominal/unit/complete
-  ranking alohida; partial quote complete winner bo‘lmaydi.
-- Supplier/product history, previous valid changes, paginated trend va Uzbek UI.
+Production tasnifi **NOT READY**. Lokal login HTTP 200. Read-only probe: 11 migration,
+0 pending schema, DB/storage reachable; worker unknown. SMTP live/AI live unverified.
+OperationsPreparationTest 11 passed / 30 assertions; migration ishlatmaydi. Ops
+shablonlari serverga o‘rnatilmadi. [Joriy dalillar](production-operations-sprint.md).
+Keyingi ish: staging host/access/operator va authorized SMTP recipient, reviewed
+artifact; keyin ruxsatli worker/TLS/SMTP/monitoring/restore/load/rollback tekshiruvi.
+`migrate` va destructive DB amallari taqiqlangan; full-suite/browser setup schema
+tayyorlashi sabab joriy sprintda qayta ishlatilmadi. Quyidagi sonlar tarixiy baseline.
 
-Boshlang‘ich qayta baseline PG 139/139 va browser 10/10 edi. Yakuniy PostgreSQL
-**175/175, 1273 assertions**; SQLite **162 passed / 13 PG-only skipped, 1257 assertions**;
-Chromium desktop/mobil **12/12**. Typecheck/build/Pint/audit/cache tekshiruvlari o‘tdi.
-Yangi migration lokal mavjud bazaga qo‘llandi: **8/8 Ran**. .env/key saqlandi; reset yo‘q.
+## 2026-10-31 corrective sprint
 
-20 000 kuzatuv/20 supplier PostgreSQL EXPLAIN’da yangi index ishladi; PHPga 20 quote,
-9 query, 285 744 byte qo‘shimcha peak memory. Bu lokal namuna, production p95/capacity
-emas. To‘liq qoidalar va real natijalar phase-3-price-intelligence.md/readinessda.
-PG container/browser server/temp muhitlari tozalandi; lokal config/route/view cachelar
-clear qilindi. Real CI remote yo‘q, production readiness tasdiqlanmagan.
+Mavjud analytics MIN(id)/supplier mixing, personal notification recipient/status,
+assertion suppression va real import queue dalili bo‘yicha tuzatishlar bajarildi.
+7–10-bosqichlar boshlanmadi. Phase 1–4 core regressiyalari saqlandi.
 
-## Saqlanadigan cheklovlar
+Joriy code: AnalyticsPrices Phase 3 latest/as-of/comparison/historyni ishlatadi;
+export 500-row chunks. Personal alert faqat active/verified/current-member egasiga,
+log/array unavailable va SMTP accepted deliverydan ajratilgan. Rule owner-only edit.
+RealImportQueueTest haqiqiy isolated PostgreSQL worker processlari bilan, browserlar
+isolated SQLite persistent worker bilan. Test transaction assertion callbackdan
+tashqarida. Soxta production AI yoki market seed yo‘q.
 
-Bir supplier/product bitta quote stream; parallel contract stream yo‘q. Global
-comparison 500 suppliergacha; limitdan oshsa winner chiqarilmaydi. History/trend
-50-row sahifa. DB matching historyni baribir skan qiladi. Eski timestampga mikrosekund
-aniqligi ixtiro qilinmaydi. Current membership va profil kontaktlari joriy;
-price verification/availability eventlari as-of. Rejected/disputed/expired holatlar
-va baseline semantikasini soddalashtirib yubormang.
+| Tekshiruv | Yakuniy haqiqiy natija |
+| --- | --- |
+| PostgreSQL full suite | 216 passed, 2 skipped; 1496 assertions; 22.900 s |
+| Alohida haqiqiy PostgreSQL queue worker | 1 passed; 17 assertions; 3.695 s |
+| SQLite full suite | 204 passed, 14 skipped; 1482 assertions; 9.103 s |
+| Chromium desktop | 9/9 passed |
+| Chromium mobil (Pixel 7 viewport) | 9/9 passed |
+| Jami browser | 18/18 passed; runner 1.7 min deb ko‘rsatdi |
+| TypeScript app/browser | Passed |
+| Production frontend build | Passed; 2630 module, 1.55 s |
+| Pint / Composer validate | Passed |
+| Composer / npm audits | Advisory yoki vulnerability topilmadi (shu execution paytida) |
+| Config / route / view cache | Yaratish va clear passed, lokal cachelar tozalandi |
+| Lokal migrations | 11/11 Ran; yangi migration yo‘q |
 
-Review completed-purchase rating emas. Variant parent SKU importdan oldin mavjud
-bo‘lsin. Arxiv/evidence/corrections hard-delete qilinmaydi. Platform supplier.verify
-va price.verify Ownerga avtomatik berilmaydi. Physical purge/quota/retention va
-production backup siyosati alohida vakolatli review talab qiladi.
+PG skiplar: alohida DB talab qiluvchi RealImportQueueTest (yuqorida alohida bajarilgan)
+va PG CHECK bilan imkonsiz zero-price legacy SQLite testi. SQLite skiplar:
+13 PostgreSQL-only CHECK/performance testi va alohida PG real-worker testi.
+Hech bir yangi biznes fazasi boshlanmadi. Browser server va test worker teardown
+bilan to‘xtadi (8137 listener va imports test worker qolmadi). Temporary PostgreSQL
+container yakunda to‘xtatildi; haqiqiy ilova bazasi o‘zgartirilmadi.
 
-## Keyingi ish — faqat alohida topshiriqda 4-bosqich
 
-Ushbu sessiyada 4-bosqich boshlanmadi. Keyingi scope uchun:
+Git branch main, remote mavjud, 11/11 migrations Ran. Yangi schema kerak bo‘lmadi;
+.env/key/business DB reset/replace qilinmadi. Local debug/mail development holati
+saqlandi. Test setup faqat o‘z temp DB/storage/workerini yaratadi va tozalaydi.
 
-1. Yangi readiness/architecture/schema va Phase 3 qoidalarini o‘qing; ajratilgan
-   PostgreSQL/SQLite/browser baseline’ni qayta tekshiring.
-2. Mavjud offer CSV all-or-nothing/dedupe va product CSV preview/mapping/historyni
-   saqlang; offer import uchun preview/mapping/row errors/confirm/lifecycle qo‘shing.
-3. Original source retention, private access, provenance/task identity, reconciliation,
-   idempotency va approved physical retention/quota siyosatini belgilang.
-4. Excel parser/OCR scope, supported format, credentials/budget va human confirmation
-   talablarini alohida aniqlang. Source metadata mavjudligini extraction bajarildi
-   deb talqin qilmang; AI confidence narx tasdig‘i bo‘lmasin.
-5. As-of/latest/FX/review/tenant/file regressiyalarini saqlang. Backend/PostgreSQL,
-   browser va katta-import failure/retry testlaridan keyin real natijalarni yozing.
+## Muhim saqlanadigan qoidalar
 
-5–9: notifications, analytics/demand/forecast, group buy, proposals/approvals.
-10–12: controlled AI, jobs/recovery va platform administration. Keyingi bosqichlar
-hozir tugallangan deb belgilanmaydi.
+Latest observed_at/recorded_at/ID, correction immutable, missing delivery null,
+invalid newest sabab eski arzon quote revival yo‘q. Cohort IDs va insufficient-data
+saqlansin. Personal global rule org broadcast emas; current membership qayta
+tekshirilsin, email opt-out va individual To buzilmasin. SMTP accepted delivery emas.
 
-## Ochiq tashqi/release gate’lar
+Private files/price evidence hard-delete qilinmasin; purge faqat tasdiqlanmagan
+expired failed/cancelled import uchun reviewed amal. Live extraction unavailable
+holatini fake confidence yoki task bilan yashirmang. UI worker unknownni activega
+almashtirish uchun real heartbeat dalili kerak.
 
-Real SMTP delivery, approved live data/FX sources, Git remote/real CI, hosting/TLS/
-staging, production private storage/monitoring, encryption/retention/isolated restore,
-load/security va rollback rehearsal hali ochiq. Oldingi Phase 2 login timeoutining
-sababi tasdiqlanmagan; joriy runlar passed bo‘lsa ham CI/stagingda kuzatilsin.
-Secretlarni chatga yubormang. Har sessiyada faqat haqiqiy dalil va qolgan ishni yozing;
-.env yoki biznes bazasini reset/replace qilmang.
+## Navbatdagi aniq ishlar
+
+1. critical-quality-sprint.md/readiness va testlar bilan tanishing; yangi sessiyada
+   joriy baseline’ni qayta oling, historical sonlarni yangi natija sifatida yozmang.
+2. Stagingda database imports workerini process manager orqali doimiy ishga tushiring;
+   queue oldest age/failed_jobs/process health va recovery/worker restartni tekshiring.
+3. Real SMTP/TLS/cookies/debug configuration review, secret-safe provisioning va
+   haqiqiy recipient/account recovery testi. Key/secretni chatga yubormang.
+4. Real AI kerak bo‘lsa tasdiqlangan endpoint/model/budget va credentials bilan smoke
+   test; aks holda unavailable. Live provider hali tekshirilmagan.
+5. Encrypted backup/retention/isolated restore, monitoring/incident ownership,
+   security/load/release rollback rehearsal dalillarini oling.
+6. Daily digest/category scope va barcha notification event hooklari tugallanmaganini
+   saqlang; yangi biznes fazasiga faqat alohida kelishilgan topshiriqda o‘ting.
+
+Lokal testlar production readiness o‘rnini bosmaydi. Biznes bazasi va .env saqlansin.

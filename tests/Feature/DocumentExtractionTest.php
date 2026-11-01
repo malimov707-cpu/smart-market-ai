@@ -59,17 +59,18 @@ it('validates structured extraction confidence and usage before explicit human c
     Bus::fake([PrepareImport::class, CommitImport::class]);
     configuredExtraction();
     Http::preventStrayRequests();
-    Http::fake(['https://extract.example.test/v1' => function () {
-        try {
-            expect(DB::transactionLevel())->toBe(0, 'AI chaqiruvi tranzaksiya ichidan bajarilmasligi kerak.');
-        } catch (Throwable) {
-        }
+    $outerTransaction = DB::transactionLevel();
+    $requestTransaction = null;
+    Http::fake(['https://extract.example.test/v1' => function () use (&$requestTransaction) {
+        $requestTransaction = DB::transactionLevel();
 
         return Http::response(extractionOutput());
     }]);
     [$user,$org] = marketIdentity();
     $batch = app(ManageImports::class)->upload($user, $org, UploadedFile::fake()->createWithContent('TEST.pdf', "%PDF-1.4\nTEST ONLY fixture"), ['type' => 'products', 'timezone' => 'UTC']);
+    $outerTransaction = DB::transactionLevel();
     $batch = prepareManaged($batch);
+    expect($requestTransaction)->toBe($outerTransaction);
     expect($batch->status)->toBe('awaiting_confirmation');
     expect($batch->error_count)->toBe(0);
     $this->assertDatabaseCount('products', 0);

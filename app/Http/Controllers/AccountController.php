@@ -116,7 +116,7 @@ class AccountController extends Controller
     {
         $data = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
         $user = User::where('email', $data['email'])->first();
-        if (! $user || ! Hash::check($data['password'], $user->password) || $user->is_active) {
+        if (! $user || ! Hash::check($data['password'], $user->password) || $user->is_active || $user->is_suspended) {
             throw ValidationException::withMessages(['email' => 'Hisobni qayta faollashtirib bo‘lmadi. Ma’lumotlarni tekshiring.']);
         }
         DB::transaction(function () use ($user, $security): void {

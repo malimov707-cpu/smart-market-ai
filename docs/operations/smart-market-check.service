@@ -1,0 +1,18 @@
+# SHABLON: installed emas. Ops check nonzero bo‘lsa tashqi monitoring alert yuborsin.
+[Unit]
+Description=Smart Market read-only dependency and queue check
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=smartmarket
+Group=smartmarket
+WorkingDirectory=/srv/smart-market/current
+EnvironmentFile=/etc/smart-market/runtime.env
+ExecStart=/usr/bin/php /srv/smart-market/current/artisan ops:check --dependencies
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/smart-market/shared
+StandardOutput=journal
+StandardError=journal

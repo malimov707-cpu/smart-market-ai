@@ -1,217 +1,141 @@
 # Production tayyorlik hisoboti
 
-Baholash: 2026-10-30, Asia/Tashkent.
+Operations davomi: opt-in private worker heartbeat implement qilindi. Targeted
+ops/heartbeat tekshiruvi **25 passed / 56 assertions / 2.575 s**; haqiqiy idle worker
+faqat yangi vaqtinchalik test bazasi/subprocessda, migratsiyasiz sinaldi. Local
+monitoring flag o‘chiq, worker unknown. Production tasnifi **NOT READY**; staging
+server/SMTP/TLS/monitoring/backup/rollback tashqi gate’lari yopilmadi.
 
-**1–3-bosqich funksional imkoniyatlari implement qilingan. Butun mahsulot hali
-production-ready yoki release candidate emas. 4–12-bosqichlar tugallanmagan.**
+2026-10-31 operations yangilanishi: **NOT READY** (production deployment uchun).
+Lokal login HTTP 200; read-only probe DB/storage reachable, 11 migration/0 pending
+schema. Operations testlari 11 passed / 30 assertions. Worker unknown, SMTP/AI live,
+staging TLS, monitoring, encrypted PostgreSQL restore va rollback rehearsal ochiq.
+Migration/deploy bajarilmadi. [Joriy dalillar](production-operations-sprint.md).
+Quyidagi full-suite/browser natijalari oldingi corrective sprintga tegishli.
 
-## 1. Haqiqiy scope
+Baholash: 2026-10-31, Asia/Tashkent. **Lokal sinov uchun ishlaydi; production release
+candidate emas.** 7–10-bosqichlar ushbu corrective sprintda boshlanmadi.
 
-1-bosqich: hisob/tashkilot, verification/reset/profile/password/session version,
-deactivate/reactivate, 5 rol, invitation/membership va oxirgi faol Owner himoyasi.
-2-bosqich: product/supplier CRUD, metadata/variants, private files, dalilli supplier
-verification, offer feedback/disputes, product CSV preview/mapping/history/export,
-remote lookups. Bular saqlandi; qayta yozilmadi.
+## Amaldagi holat
 
-3-bosqich: bounded latest quotes, transaction/observation-time as-of, source/correction
-traceability, alohida price verification, manbali history/approval FX, exact landed
-cost/ranking, previous-valid quote changes va history/trend UI. Excel/API/OCR source
-metadata borligi extraction adapteri mavjudligini bildirmaydi. Live FX ulanmagan.
-
-## 2. Narx hisobining chegaralari
-
-Har tenant/product/supplier bitta quote stream. Latest observed_at, recorded_at, ID
-DESC; future observation/recording chiqmaydi. Yangi qimmat/expired/rejected quote eski
-arzon quote bilan almashtirilmaydi. As-ofga tegishli review va supplier availability
-historysi olinadi; profil nomi va supplier tasdig‘i joriy, UI buni ajratadi.
-
-PHPga ko‘pi bilan 500 supplier quote yuklanadi; 501 bo‘lsa validatsiya xatosi va
-ranking yo‘q. SQL matching history qatorlarini baribir ko‘radi. History/trend 50 row
-sahifalangan; trend faqat sahifadagi nuqtalar, butun tarix emas. Live bozorning barcha
-supplierlari yoki parallel contract streams qamrab olingani da’vo qilinmaydi.
-
-## 3. Arxitektura va dependencylar
-
-Laravel 13.39 / PHP 8.4.22, Composer 2.10.3, Node 24.21.0, Inertia Laravel 3.5.2,
-React/TypeScript, Tailwind 4/Vite 8. Lock fayllari authoritative. BCMath/GD/PDO talab
-qilinadi. Yangi runtime dependency yoki Redis/server qo‘shilmadi. Mavjud Playwright
-va Node types dev dependency bo‘lib qoldi. CI PHP extensions ro‘yxatiga GD qo‘shildi.
-Boost MCP yo‘q; installed source va rasmiy framework hujjatlari tekshirildi.
-
-## 4. Database va migratsiyalar
-
-`2026_10_30_115437_extend_phase_three_price_intelligence` qo‘llandi:
-
-- offers recorded_at(6), source metadata/submitter/private evidence va correction FK.
-- price_reviews: alohida scope/status/actor/reason/evidence/time eventlar.
-- exchange_rates: decimal(28,12), source/reference/effective/expiry/recording/approval.
-- tenant-qualified correction/evidence FKlar va latest/temporal indekslar.
-- audit/supplier verification vaqt aniqligi 6 kasrga kengaytirildi; eski dalil saqlandi.
-- PostgreSQL rate positivity/interval/independent-approval CHECKlari.
-
-Lokal mavjud SQLite’da yangi migration **36.32 ms**, jami **8/8 Ran**. Bu production
-migration timing emas. Oldingi migrationlar o‘zgarmadi, forward-only down ma’lumotni
-hard-delete qilmaydi. Alohida populated-upgrade testi eski narx/reference/time/ID
-va FK consistency’ni tekshirdi. Production bazaga deployment bajarilmadi.
-
-.env/key/credentiallar o‘zgartirilmadi; mavjud biznes bazasida reset/replace yoki
-soxta price/rate seed bajarilmadi. Git repository/remote yo‘q; commit/Actions dalili yo‘q.
-
-## 5. Fayllar va endpointlar
-
-LatestOffers, CompareOffers, SupplierAvailability, PriceVerification, ExchangeRates,
-PriceHistory servislar; PriceReview/ExchangeRate modellar va PriceIntelligenceController.
-RecordOffer/MarketRequest provenance/currency/correctionni tekshiradi. File controller
-price evidence retirement va parallel review/retire row locklarini qo‘llaydi.
-
-GET /compare optional as_of; GET /prices/{id}; POST /prices/{id}/review;
-GET /products/{id}/price-history; GET/POST /exchange-rates;
-POST /exchange-rates/{id}/approve. Browser sessions/CSRF/active/verified/membership
-himoyasida. Public/versioned API yo‘q. To‘liq inventar route:list/API hujjatida.
-
-Frontend Comparison, PriceObservation, PriceHistory, ExchangeRates, PriceFacts;
-offer/product/supplier sahifalaridagi manba/history linklari. Uzbek UI, real data,
-calculation/exclusion/missing-cost va insufficient-history holatlari bor.
-
-## 6. Authorization va verification
-
-Owner/Manager/Buyer offer va pending/dispute; Analyst/Auditor read-only. Verified/
-rejected qarori independent Ownerga tegishli. Platform price scope alohida price.verify
-permission talab qiladi; supplier.verify va Owner roli buni avtomatik bermaydi.
-Reviewer offer/pending/evidence muallifi bo‘lmasin; bir xil faol supplier evidence
-tekshirilsin. Narx unverified bo‘lib boshlanadi; supplier tasdig‘i meros bo‘lmaydi.
-
-Tarixiy kirish current membership bilan; cross-tenant IDs 404/validation error.
-Source va correction related ownership service’da qayta tekshiriladi. Submitting actor,
-recorded time va approvals clientdan olinmaydi. Audit va decision history saqlanadi.
-AI approval yoki avtomatik real source-authenticity tekshiruvi mavjud emas.
-
-## 7. Moliyaviy qoidalar
-
-UZS base; USD/EUR/RUB uchun real source/reference, bounded effective/expiry va mustaqil
-Owner tasdiqlagan tenant rate kerak. Missing/unapproved/expired rate unavailable.
-Kech yozilgan/approved rate oldingi as-ofni o‘zgartirmaydi. Live kurs provider yo‘q.
-
-g/kg, ml/l, pcs va explicit package metadata; dimensions aralashtirilmaydi.
-Packages ceiling va MOQ, excess, subtotal, known delivery hisoblanadi. Money decimal
-strings/BCMath; final landed total half-up 2 kasr, normalized unit half-up 12 kasr.
-Intermediate unit ratio avval truncation qilinmaydi. Unknown delivery null, zero emas.
-
-Cheapest nominal (ayni original currency), normalized unit va complete landed cost
-alohida. Partial/ineligible quote complete winner bo‘lmaydi. Changes same-cohort
-minimum va latest/previous valid normalized quote bilan; yetarli data bo‘lmasa
-unavailable. Actual purchases/savings yoki bozor qamrovi ixtiro qilinmagan.
-
-## 8. Backend testlar
-
-Sessiya boshidagi qayta baseline: PG 139/1038 assertions/13.407 s; browser 10/31.8 s.
-Yakuniy natijalar:
-
-| Muhit | Yakuniy natija |
+| Holat | Dalil va chegara |
 | --- | --- |
-| PostgreSQL 17 | **175 passed / 1273 assertions / 24.042 s** |
-| SQLite :memory: | **162 passed / 13 PG-only skipped / 1257 assertions / 6.782 s** |
+| Implement qilingan | Identity/organization, katalog/private files, Phase 3 narx intelligence, managed CSV/XLSX import, extraction abstraction/human review, personal alerts/in-app notifications, bounded analytics/export |
+| Tekshirilgan | Quyidagi shu-sessiya backend, real worker, desktop/mobile browser va build natijalari |
+| Sozlangan | Lokal SQLite, private catalog disk, database imports queue; bu production sozlama emas |
+| Sozlanmagan / tasdiqlanmagan | Real SMTP delivery, live AI, staging/TLS, monitoring, production backup/restore/load/rollback |
+| Qolgan scope | To‘liq forecast/group buy/procurement approval/AI orchestration/platform administration; daily digest va barcha alert event hooklari ham to‘liq emas |
 
-Oldingi barcha testlar saqlandi. Eski currency-invalid misoli endi qo‘llab-quvvatlanadigan
-USD o‘rniga XXX bo‘ldi; oldingi ranking testi turli supplierlarni haqiqiy alohida
-supplierlar bilan tayyorlaydi. Yangi PriceIntelligenceTest, PriceQueryPerformanceTest,
-PhaseThreeUpgradeTest va qo‘shimcha PostgreSQL CHECK regressiyalari.
+## Repository va database
 
-Coverage: expensive latest, stable ties, 3000 history/501 supplier cap, UTC offset,
-as-of/future/subsecond corrections va range boundary, source metadata/dedupe,
-independent verification/dispute/platform grants, missing/expired/historical rates,
-large decimal/rounding, nominal/unit/landed ranking, previous valid change,
-five-role/direct-HTTP/guest/tenant/evidence, upgrade va actual DB CHECKlar.
+Git repository mavjud, branch `main`, `origin` GitHub remote bor. Sprint boshida
+toza working tree tekshirildi. Remote CI/deployment bajarilgani tasdiqlanmagan.
+**11/11 migrations Ran**; yangi migration kerak bo‘lmadi, historical migrationlar
+qayta yozilmadi. Lokal biznes bazasi reset/drop/replace qilinmadi. `.env`/APP_KEY
+saqlandi va credentials hisobotga chiqarilmadi.
 
-## 9. Browser natijalari
+Eski hujjatlardagi “8 migration / Git yo‘q / Phase 4 boshlanmadi” avvalgi sessiyaning
+tarixiy holati edi; amaldagi holat sifatida ishlatilmasin. Phase 2/3 hisobotlaridagi
+sonlar o‘sha bosqich natijalari bo‘lib qoladi, yangi baseline emas.
 
-**Chromium desktop + Pixel 7 viewport: 12/12 passed, final run 48.3 s.**
+## Tuzatilgan nuqsonlar
 
-Mavjud 10 test va yangi desktop/mobile Phase 3 workflow: yangi qimmat narx, bir supplier
-latest, oldingi as-of, source/details, trend, pending→independent verified, rate
-self-approval denial va independent approval. Browser JS errors ham tekshirildi.
-Mobil narx/trend sahifasi screenshot orqali vizual ko‘rildi.
+- Analyticsdagi MIN(id) va turli supplierlarni bitta vaqt seriyasi deb olish olib
+  tashlandi. Phase 3 observed/recorded/ID latest, as-of va correction saqlanadi.
+- Har supplierning latest/previous quote’i alohida, eligible min/max UZS/base-unit,
+  product change aniq matched cohort IDs bilan. Invalid newest eski narxni qaytarmaydi.
+- Export full offer ID hydration o‘rniga 500-row ID chunks va per-chunk snapshots;
+  tenant filter IDlari tekshiriladi, formula-safe CSV ishlaydi.
+- Email personal subscriber egasiga, active/verified/current membership bilan;
+  global mahsulot qamrovi organization-wide broadcast emas. Rule edit owner-only.
+- log/array unavailable; sent faqat SMTP acceptance, delivery emas. Per-recipient To,
+  opt-out, exception failure, independent in-app notification va tenant dedupe bor.
+- Extraction assertion catchdan tashqariga ko‘chirildi; true-only debug test actual
+  invalid JSON regressioniga aylantirildi. Yashil test soni o‘zi barcha talab dalili emas.
+- Import real queue worker bilan tekshirildi; UI worker heartbeat yo‘qligida unknown.
+  SQLite IMMEDIATE + busy timeout web/worker writerlarini serializatsiya qiladi.
 
-DB/storage/cache/seeder OS temp katalogida. Real email yoki production record yo‘q.
-Dastlabki yangi test bir summa subtotal/jamida ko‘ringani sabab ambiguous locator bilan
-yiqildi; locator .total bilan to‘g‘rilandi. Bu application hisob xatosi emas edi.
-Oldingi Phase 2 sessiyasidagi bitta login timeout sababi hanuz tasdiqlanmagan;
-joriy baseline va final runlar uning qaytalanmaganini ko‘rsatadi, root cause yechimi emas.
+## Shu-sessiyadagi tekshiruvlar
 
-## 10. Build, format, audit va cache
+Baseline: PostgreSQL **201 passed / 1424 assertions / 43.988 s**;
+SQLite **188 passed / 13 skipped / 1408 assertions / 13.734 s**;
+Chromium **12 passed / 59.8 s**.
 
-TypeScript app/browser typecheck, production build, Pint fix, Composer validate,
-Composer audit va npm high audit bajarildi. Audit paytida advisory/vulnerability yo‘q.
-Final Vite build **875 ms / 2625 module**; production latency emas.
+| Tekshiruv | Yakuniy haqiqiy natija |
+| --- | --- |
+| PostgreSQL full suite | 216 passed, 2 skipped; 1496 assertions; 22.900 s |
+| Alohida haqiqiy PostgreSQL queue worker | 1 passed; 17 assertions; 3.695 s |
+| SQLite full suite | 204 passed, 14 skipped; 1482 assertions; 9.103 s |
+| Chromium desktop | 9/9 passed |
+| Chromium mobil (Pixel 7 viewport) | 9/9 passed |
+| Jami browser | 18/18 passed; runner 1.7 min deb ko‘rsatdi |
+| TypeScript app/browser | Passed |
+| Production frontend build | Passed; 2630 module, 1.55 s |
+| Pint / Composer validate | Passed |
+| Composer / npm audits | Advisory yoki vulnerability topilmadi (shu execution paytida) |
+| Config / route / view cache | Yaratish va clear passed, lokal cachelar tozalandi |
+| Lokal migrations | 11/11 Ran; yangi migration yo‘q |
 
-Route/config/view cache yaratish va tozalash o‘tdi; lokal cachelar tozalandi.
+PG skiplar: alohida DB talab qiluvchi RealImportQueueTest (yuqorida alohida bajarilgan)
+va PG CHECK bilan imkonsiz zero-price legacy SQLite testi. SQLite skiplar:
+13 PostgreSQL-only CHECK/performance testi va alohida PG real-worker testi.
+Hech bir yangi biznes fazasi boshlanmadi. Browser server va test worker teardown
+bilan to‘xtadi (8137 listener va imports test worker qolmadi). Temporary PostgreSQL
+container yakunda to‘xtatildi; haqiqiy ilova bazasi o‘zgartirilmadi.
 
-PHPStan/Larastan hali yo‘q. Real CI remote hali bajarilmagan.
 
-## 11. Performance dalili
+Real worker testi alohida `quality_queue_test` bazasida wrapping transactionsiz,
+haqiqiy artisan queue:work subprocess bilan. Default suites bu testni skip qiladi;
+PostgreSQL zero-price legacy testini ham skip qiladi, chunki DB CHECK zero’ni
+rad etadi. SQLite PostgreSQL-specific CHECK/performance testlarini qo‘llamaydi.
 
-20 000 kuzatuvdan 20 quote hydrate qilindi; **9 query / 33.20 ms DB / 51.77 ms
-service wall / 285 744 byte qo‘shimcha PHP peak memory**. EXPLAIN planning 0.668 ms,
-execution 34.636 ms; offers_latest_lookup Index Scan 20 000 row → WindowAgg 20 row;
-11 098 shared-hit block, 0 temp read/write. Alohida EXPLAIN va service execution
-namunalari; cold disk yoki production load natijasi emas.
+## Queue operational holati
 
-Bu disposable PostgreSQL 17/tmpfs/loopbackdagi 20 000 test observation / 20 supplier
-uchun bitta namuna. Query plan va to‘liq qoida phase-3-price-intelligence.md da.
-Index ishlatilsa ham matching history qatorlari skan qilinadi; constant-time da’vosi
-yo‘q. Concurrency, p95/throughput va production capacity bu testdan kelib chiqmaydi.
+Database queue `imports`; retry_after=90, job timeout=60, lease=90. Prepare tries=2,
+Commit tries=3, backoff 5/15 sekund. Real worker preparation, failed_jobs, manual retry,
+sheet reparse, human confirm, completed, valid_rows→completed_with_errors va duplicate
+executionni tekshiradi. Production persistent worker joriy etilgani tasdiqlanmagan;
+workersiz processing operational emas. Buyruqlar deployment.md da.
 
-## 12. Private storage va imports
+Dashboard pending/failed tenant batchlar va oxirgi completionni ko‘rsatadi; global
+failed_jobs tafsilotlarini tenantga ochmaydi. Driver sozlanganligi active worker
+dalili emas. Heartbeat/protected operator monitoring alohida gate.
 
-Oldingi logical retention/private upload/MIME/GD/png/PDF/authorization saqlandi.
-Price source/review reference qilgan fayl retire/replace qilinmaydi. Physical purge,
-quota, malware scanning, production object-storage backup/restore hali ochiq.
-Product CSV preview/mapping/idempotent confirmation/history/export ishlaydi;
-parent SKU oldin mavjud bo‘lsin. Offer CSV originali avvalgidek retained emas;
-secure offer import lifecycle/Excel/OCR Phase 4da. Source metadata bu cheklovni yopmaydi.
+## Integratsiyalar va xavfsizlik
 
-## 13. Integratsiyalar, AI va jobs
+Local APP_ENV=local, debug=true, mailer=log, AI unavailable. SMTP host/port fieldlari
+borligi connectivity/deliveryni isbotlamaydi. Private storage local;
+object storage/backup/encryption/retention/scanner productionda tasdiqlanmagan.
 
-Local DB/private storage faqat tekshirilgan darajada ishlaydi. Real SMTP delivery,
-live FX/supplier API/OCR/payment/monitoring integratsiyasi tekshirilmagan yoki ulanmagan.
-AI provider/tool/planner/task/budget/approval yo‘q; 0 AI task, autonomy metric yo‘q.
-Domain jobs/schedules/outbox/recovery ham keyingi scope. /up faqat application boot.
+Direct tenant import/file/errors, alert/rule/notification IDOR, report filters,
+auditor permissions va personal recipient isolation targeted testlar bilan tekshirildi.
+Bu to‘liq pentest, RLS, 2FA yoki external immutable audit dalili emas.
 
-## 14. Known limitations
+AI extraction live credentialsiz HTTP so‘rov yubormaydi; schema/confidence/usage,
+provider failure va human correction fake test provider bilan. Real provayder
+muvaffaqiyati da’vo qilinmaydi. Price verification extraction approval’dan alohida.
 
-500 supplier global comparison cap; paginated history/trend; one stream per supplier.
-Legacy timestamps aniq bo‘lmaganidan ortiq tarixiy aniqlik da’vo qilinmaydi. Supplier
-contact/name va profil certificationi joriy, narx verificationi tarixiy. Rate source
-haqiqiyligi human reviewga bog‘liq; hech qanday avtomatik trusted live feed yo‘q.
+## Performance va qamrov chegaralari
 
-Offer feedback completed-purchase performance emas. Current membership requirement
-eski revoked a’zoni tarixga qaytarmaydi. Explicit tenant scoping doimiy review talab
-qiladi. ru/en to‘liq localization, 2FA/SSO/RLS/external immutable audit/pentest yo‘q.
+Analytics 10 product/sahifa, productga maksimum 500 supplier snapshot; 2001 history
+qatori uchun bir supplier series, 21 query va taxminan 106 KB qo‘shimcha PHP peak
+namunasi olindi. Har product explicit hisoblash querylari bor, page query soni product
+soni bilan o‘sadi; constant-time da’vosi yo‘q. Export 500-row, history 50-row.
 
-## 15. Lokal ishga tushirish
+Real worker namunalari local subprocess vaqtidir; production p95/throughput/capacity
+emas. Full JSON namunalari storage/framework/testing/quality-*.json da; aniq o‘lchov
+va failures critical-quality-sprint.md da. Browser tarixidagi timeout/lokator/race
+urinishlari yashirilmagan; final natijalar alohida qayd etiladi.
 
-Mavjud installation uchun composer install, npm ci, php artisan migrate,
-npm run build, php artisan serve. Yangi checkout environment/key qadamlari README’da.
-Mavjud .env/APP_KEY almashtirilmasin. Default production user yoki rate yo‘q.
-Tests faqat testing.md dagi isolated bazalarda; TestCase file-backed application
-bazasini rad etadi. Platform grant vakolatli operator provisioningini talab qiladi.
+## Ochiq release gate va keyingi ish
 
-## 16. CI/CD, staging va recovery
+- [ ] Production environment/debug/cookie/TLS/proxy konfiguratsiyasi va protected release.
+- [ ] Haqiqiy SMTP reset/delivery va per-recipient provider evidence.
+- [ ] Persistent worker/process health, queue failure alerts va recovery rehearsal.
+- [ ] Real AI source/model/budget/provider smoke test yoki unavailable holatini saqlash.
+- [ ] Private evidence retention/quota/scanning, encrypted backups va isolated restore.
+- [ ] External monitoring/incident ownership, staging security/load/rollback testi.
+- [ ] Qolgan agreed biznes scope va mavjud alert event/digest cheklovlarini yakunlash.
 
-Git remote/real CI, staging/production host/TLS, protected releases, monitoring,
-backup encryption/retention/isolated restore, load/security test va rollback rehearsal
-bajarilmagan. Runbooklarning mavjudligi ushbu gate’larni yopmaydi. Productionga
-migration/deployment bajarilmadi; lokal migration va disposable testlar ajratilgan.
-
-## 17. Tashqi dalil va commercial readiness
-
-SMTP/reset email delivery, real data-source approval va supplier/procurement biznes
-jarayonlari alohida tekshiruv talab qiladi. RPO/RTO, peak production memory,
-throughput, AI cost/success/autonomy yoki real savings bo‘yicha natija yo‘q.
-
-## 18. Davomi
-
-1–3-bosqichning so‘ralgan scope’i lokal backend/PostgreSQL/browser bilan tekshirildi.
-4-bosqich ushbu sessiyada boshlanmadi. Alohida topshiriqda secure offer import,
-preview/mapping/lifecycle/retention/Excel/OCR; keyin 5–12-bosqichlar. Aniq davom
-rejasi continuation-plan.md da. Production release gate’lar ochiq qoladi.
+Bu gate’lar lokal test yoki hujjat mavjudligidan yopilmaydi. Batafsil sabab/fayl/fix/
+test dalillari critical-quality-sprint.md, keyingi ish continuation-plan.md da.

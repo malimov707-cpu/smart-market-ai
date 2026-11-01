@@ -125,3 +125,21 @@ qiymatlarini qat'iy validatsiya qiladi. Kredensial yo'q bo'lsa ajratish aniq
 tranzaksiya ichida, AI chaqiruvi tranzaksiyadan tashqarida. XLSX uchun tashqi paket
 o'rnatilmadi: cheklangan parser ZIP/XML kengaytmalari bilan qurilgan.
 Batafsil: phase-4-import-and-extraction.md.
+
+## Corrective sprint — 2026-10-31
+
+AnalyticsPrices mavjud Phase 3 latest/history/eligibility hisobini ishlatadi:
+supplier-specific series va aniq cohort IDs. Dashboard 10 product/sahifa; report
+export 500-row ID chunk + per-chunk review snapshot. Full-history ID hydration yo‘q.
+Threshold va monetary qiymatlar floatga aylantirilmaydi.
+
+ManageAlerts personal rule ownerga obuna va current membership bilan yuboradi.
+Global scope organization-wide email emas. Faqat smtp transport acceptance sent,
+log/array unavailable; delivery webhook yo‘q. Unsupported daily/category opsiyalari
+muvaffaqiyatli ishlayotgandek ko‘rsatilmaydi. Batafsil phase-5-notifications.md va
+phase-6-analytics.md. Yangi 7–10 biznes bosqichlari boshlanmadi.
+
+Import worker DB lease/generation bilan ajratilgan; real PostgreSQL subprocess
+worker testi mavjud. SQLite IMMEDIATE + 5-second busy timeout concurrent session
+va worker writerlarini serializatsiya qiladi. UI worker status unknown; heartbeat
+instrumentatsiyasi alohida operator monitoring gate’i. No new runtime dependency.

@@ -13,7 +13,9 @@ use App\Models\Supplier;
 use App\Services\CompareOffers;
 use App\Services\ImportOffers;
 use App\Services\ManageImports;
+use App\Services\OpenRouterAssistant;
 use App\Services\RecordOffer;
+use App\Services\WorkspaceInsights;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,22 +27,27 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MarketController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, WorkspaceInsights $insights): Response
     {
         $organization = $request->attributes->get('organization');
         $tenant = $organization->id;
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
+            'product_id' => ['nullable', 'integer'],
+            'quantity' => ['nullable', 'numeric', 'decimal:0,3', 'min:0.001', 'max:1000000000']]);
         $section = $request->route()->getName();
 
         return Inertia::render('Workspace', [
             'section' => $section,
+            'assistant' => $section === 'ai' ? app(OpenRouterAssistant::class)->availability() : null,
+            'conversation' => $section === 'ai' ? $request->session()->get('ai_chat.'.$tenant, []) : [],
+            'insights' => $section === 'ai' ? $insights->summarize($organization, $request->user(), isset($filters['product_id']) ? (int) $filters['product_id'] : null, (string) ($filters['quantity'] ?? '1')) : null,
             'canManage' => $request->user()->can(in_array($section, ['products', 'suppliers']) ? 'catalog' : 'manage', $organization),
             'filters' => $filters,
             'stats' => [
                 'products' => Product::where('organization_id', $tenant)->whereNull('archived_at')->count(),
                 'suppliers' => Supplier::where('organization_id', $tenant)->count(),
                 'offers' => Offer::where('organization_id', $tenant)->count(),
-                'fresh' => Offer::where('organization_id', $tenant)->where('observed_at', '>=', now()->subDays(7))
+                'fresh' => Offer::where('organization_id', $tenant)->where('observed_at', '>=', now()->subDays(7))->where('observed_at', '<=', now())
                     ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->count(),
             ],
             'products' => $section === 'products' ? Product::where('organization_id', $tenant)->whereNull('archived_at')

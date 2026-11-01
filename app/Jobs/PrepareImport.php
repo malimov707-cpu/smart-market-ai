@@ -9,6 +9,7 @@ use App\Services\ImportFailure;
 use App\Services\ManageImports;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -47,7 +48,8 @@ class PrepareImport implements ShouldQueue
             }
             $imports->fail(ImportBatch::findOrFail($this->batchId), $error->errorCode, $token);
             $this->fail($error);
-        } catch (Throwable) {
+        } catch (Throwable $error) {
+            Log::warning('import.worker_failed', ['batch_id' => $this->batchId, 'exception_class' => $error::class, 'exception_code' => (string) $error->getCode()]);
             $imports->fail(ImportBatch::findOrFail($this->batchId), 'processing_failed', $token);
             $this->fail(new ImportFailure('processing_failed'));
         }

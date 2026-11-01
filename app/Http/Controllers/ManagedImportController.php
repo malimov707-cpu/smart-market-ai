@@ -33,6 +33,7 @@ class ManagedImportController extends Controller
         return Inertia::render('ManagedImports', ['batches' => ImportBatch::where('organization_id', $organization->id)
             ->when($filters['status'] ?? null, fn ($query, $value) => $query->where('status', $value))
             ->when($filters['type'] ?? null, fn ($query, $value) => $query->where('type', $value))->orderByDesc('id')->paginate(20)->withQueryString(),
+            'queueStatus' => ['driver' => config('imports.queue_connection'), 'queue' => config('imports.queue'), 'worker' => 'unknown', 'pending_imports' => ImportBatch::where('organization_id', $organization->id)->whereIn('status', ['uploaded', 'queued', 'validating', 'processing'])->count(), 'failed_imports' => ImportBatch::where('organization_id', $organization->id)->where('status', 'failed')->count(), 'last_completed_at' => ImportBatch::where('organization_id', $organization->id)->max('completed_at')],
             'filters' => $filters, 'provider' => $extractor->availability(), 'canCatalog' => $request->user()->can('catalog', $organization),
             'canOffer' => $request->user()->can('manage', $organization)]);
     }

@@ -6,7 +6,7 @@ import { timestamp } from '../Components/PriceFacts';
 type Notification = { id: number; event_type: string; title: string; body: string | null; url: string | null; read_at: string | null; email_status: string; created_at: string };
 type Pager = { data: Notification[]; current_page: number; last_page: number; total: number; links: { url: string | null; label: string; active: boolean }[] };
 
-const emailStatuses: Record<string, string> = { not_requested: 'Email so‘ralmagan', sent: 'Email yuborildi', unavailable: 'Email sozlanmagan', failed: 'Email yuborilmadi' };
+const emailStatuses: Record<string, string> = { not_requested: 'Email so‘ralmagan', sent: 'SMTP qabul qildi (delivery tasdiqlanmagan)', unavailable: 'Email sozlanmagan', failed: 'Email yuborilmadi' };
 
 export default function Notifications({ notifications, unreadCount, filter }: { notifications: Pager; unreadCount: number; filter: string }) {
     return <Layout title="Bildirishnomalar" action={<Link href="/notifications/rules" className="button secondary">Ogohlantirish qoidalari</Link>}>

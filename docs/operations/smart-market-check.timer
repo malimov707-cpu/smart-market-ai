@@ -1,0 +1,10 @@
+[Unit]
+Description=Smart Market monitoring sample every minute
+
+[Timer]
+OnBootSec=120
+OnUnitActiveSec=60
+Unit=smart-market-check.service
+
+[Install]
+WantedBy=timers.target

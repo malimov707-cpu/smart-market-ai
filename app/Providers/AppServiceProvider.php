@@ -5,7 +5,14 @@ namespace App\Providers;
 use App\Services\DocumentExtractor;
 use App\Services\FileScanner;
 use App\Services\HttpDocumentExtractor;
+use App\Services\QueueWorkerHeartbeat;
 use App\Services\UnavailableFileScanner;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\WorkerIdle;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -17,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(DocumentExtractor::class, HttpDocumentExtractor::class);
         $this->app->bind(FileScanner::class, UnavailableFileScanner::class);
+        $this->app->singleton(QueueWorkerHeartbeat::class);
     }
 
     /**
@@ -24,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        RateLimiter::for('ai-assistant', fn (Request $request) => Limit::perMinute(6)->by('ai:'.($request->user()?->id ?? $request->ip())));
+        Event::listen([WorkerIdle::class, JobProcessing::class], [QueueWorkerHeartbeat::class, 'record']);
     }
 }

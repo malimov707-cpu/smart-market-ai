@@ -48,7 +48,7 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $credentials = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        if (! Auth::attempt([...$credentials, 'is_active' => true])) {
+        if (! Auth::attempt([...$credentials, 'is_active' => true, 'is_suspended' => false])) {
             throw ValidationException::withMessages(['email' => 'Email yoki parol noto‘g‘ri.']);
         }
         $request->session()->regenerate();
@@ -56,7 +56,7 @@ class AuthController extends Controller
         $request->session()->put('security_version', $request->user()->security_version);
         SecurityEvent::create(['user_id' => $request->user()->id, 'action' => 'account.login']);
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route($request->user()->is_platform_admin ? 'admin' : 'dashboard'));
     }
 
     public function logout(Request $request): RedirectResponse

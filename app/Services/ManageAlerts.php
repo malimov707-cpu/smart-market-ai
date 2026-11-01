@@ -28,7 +28,9 @@ class ManageAlerts
     {
         Validator::make($input, ['event_type' => ['nullable', Rule::in(self::EVENTS)], 'enabled' => ['nullable', 'boolean']])->validate();
 
-        return AlertRule::where('organization_id', $organization->id)
+        Gate::forUser($actor)->authorize('manage', $organization);
+
+        return AlertRule::where('organization_id', $organization->id)->where('user_id', $actor->id)
             ->when($input['event_type'] ?? null, fn ($query, $type) => $query->where('event_type', $type))
             ->when(isset($input['enabled']), fn ($query) => $query->where('enabled', (bool) $input['enabled']))
             ->orderBy('id')->get()->all();
@@ -40,11 +42,11 @@ class ManageAlerts
         $data = Validator::make($input, [
             'name' => ['required', 'string', 'max:120'],
             'event_type' => ['required', Rule::in(self::EVENTS)],
-            'scope_type' => ['required', Rule::in(['product', 'supplier', 'category', 'global'])],
+            'scope_type' => ['required', Rule::in(['product', 'supplier', 'global'])],
             'scope_id' => ['nullable', 'integer'],
             'threshold_kind' => ['required', Rule::in(['none', 'percent', 'absolute'])],
-            'threshold_value' => ['nullable', 'numeric', 'min:0', 'required_if:threshold_kind,percent,absolute'],
-            'frequency' => ['required', Rule::in(['instant', 'daily'])],
+            'threshold_value' => ['nullable', 'regex:/^\d{1,10}(?:\.\d{1,4})?$/', 'required_if:threshold_kind,percent,absolute'],
+            'frequency' => ['required', Rule::in(['instant'])],
             'channels' => ['sometimes', 'array'], 'channels.*' => ['in:app,email'],
         ])->validate();
         if ($data['scope_type'] !== 'global') {
@@ -69,8 +71,9 @@ class ManageAlerts
     public function update(User $actor, AlertRule $rule, array $input): AlertRule
     {
         Gate::forUser($actor)->authorize('manage', Organization::findOrFail($rule->organization_id));
-        $data = Validator::make($input, ['enabled' => ['sometimes', 'boolean'], 'threshold_value' => ['sometimes', 'numeric', 'min:0'],
-            'frequency' => ['sometimes', Rule::in(['instant', 'daily'])], 'name' => ['sometimes', 'string', 'max:120'],
+        abort_unless($rule->user_id === $actor->id, 404);
+        $data = Validator::make($input, ['enabled' => ['sometimes', 'boolean'], 'threshold_value' => ['sometimes', 'regex:/^\d{1,10}(?:\.\d{1,4})?$/'],
+            'frequency' => ['sometimes', Rule::in(['instant'])], 'name' => ['sometimes', 'string', 'max:120'],
             'channels' => ['sometimes', 'array'], 'channels.*' => ['in:app,email']])->validate();
         $rule->update($data);
         AuditLog::create(['organization_id' => $rule->organization_id, 'user_id' => $actor->id, 'action' => 'alert_rule.updated',
@@ -82,9 +85,21 @@ class ManageAlerts
     /** Notify every enabled matching rule owner. Idempotent via user+dedupe_key. */
     public function dispatch(Organization $organization, string $eventType, string $dedupeKey, string $title, ?string $body = null, array $metadata = [], ?string $url = null): int
     {
-        $rules = AlertRule::where('organization_id', $organization->id)->where('enabled', true)->where('event_type', $eventType)->get();
+        $rules = AlertRule::where('organization_id', $organization->id)->where('enabled', true)->where('event_type', $eventType)->where('frequency', 'instant')->with('user')->orderBy('id')->get();
+        $recipients = [];
+        foreach ($rules as $rule) {
+            $user = $rule->user;
+            if ($user && $user->is_active && $user->hasVerifiedEmail() && $user->can('view', $organization)) {
+                $recipients[$user->id] = $user;
+            }
+        }
+        $emailRecipients = [];
+        $createdNotifications = [];
         $created = 0;
         foreach ($rules as $rule) {
+            if (! isset($recipients[$rule->user_id])) {
+                continue;
+            }
             $scopeId = $metadata['scope_id'] ?? null;
             $category = $metadata['category'] ?? null;
             if ($rule->scope_type === 'product' && (int) $scopeId !== (int) $rule->scope_id) {
@@ -98,36 +113,46 @@ class ManageAlerts
             }
             $threshold = $rule->threshold_kind === 'none' ? null : $rule->threshold_value;
             $change = $metadata['change_value'] ?? null;
-            if ($threshold !== null && ($change === null || bccomp((string) abs((float) $change), (string) $threshold, 4) < 0)) {
+            if ($threshold !== null && ($change === null || bccomp(ltrim((string) $change, '-'), (string) $threshold, 4) < 0)) {
                 continue;
             }
-            $created += AppNotification::firstOrCreate(['user_id' => $rule->user_id, 'dedupe_key' => substr($eventType.'|'.$dedupeKey, 0, 120)],
+            $key = hash('sha256', $organization->id.'|'.$eventType.'|'.$dedupeKey);
+            $notification = AppNotification::firstOrCreate(['user_id' => $rule->user_id, 'dedupe_key' => $key],
                 ['organization_id' => $organization->id, 'alert_rule_id' => $rule->id, 'event_type' => $eventType, 'title' => $title,
-                    'body' => $body, 'metadata' => $metadata, 'url' => $url, 'email_status' => 'not_requested'])->wasRecentlyCreated ? 1 : 0;
+                    'body' => $body, 'metadata' => $metadata, 'url' => $url, 'email_status' => 'not_requested']);
+            if ($notification->wasRecentlyCreated) {
+                $created++;
+                $createdNotifications[$rule->user_id] = $notification;
+            }
+            if (in_array('email', $rule->channels ?? [], true)) {
+                $emailRecipients[$rule->user_id] = true;
+            }
         }
-        if ($created > 0 && in_array('email', $rules->flatMap(fn ($r) => $r->channels ?? [])->unique()->all(), true)) {
-            $this->attemptEmail($organization, $eventType, $dedupeKey, $title, $body);
+        foreach ($createdNotifications as $userId => $notification) {
+            if (isset($emailRecipients[$userId])) {
+                $this->attemptEmail($recipients[$userId], $notification);
+            }
         }
 
         return $created;
     }
 
-    /** Honest email status: only marks sent when mail transport actually accepted the message. */
-    private function attemptEmail(Organization $organization, string $eventType, string $dedupeKey, string $title, ?string $body): void
+    /** sent means SMTP transport accepted, never delivered. Local log/array transports are unavailable. */
+    private function attemptEmail(User $recipient, AppNotification $notification): void
     {
-        $status = config('mail.default') && config('mail.from.address') ? 'sent' : 'unavailable';
-        if ($status === 'sent') {
-            try {
-                $recipients = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))->pluck('email');
-                foreach ($recipients as $email) {
-                    Mail::raw($body ?? $title, fn ($message) => $message->to($email)->subject('[Smart Market] '.$title));
-                }
-            } catch (\Throwable) {
-                $status = 'failed';
-            }
+        $mailer = config('mail.default');
+        $transport = config('mail.mailers.'.$mailer.'.transport');
+        if ($transport !== 'smtp' || ! config('mail.from.address') || ! config('mail.mailers.'.$mailer.'.host')) {
+            $notification->update(['email_status' => 'unavailable']);
+
+            return;
         }
-        AppNotification::where('organization_id', $organization->id)
-            ->where('dedupe_key', substr($eventType.'|'.$dedupeKey, 0, 120))
-            ->update(['email_status' => $status]);
+        try {
+            $message = Mail::mailer($mailer)->raw($notification->body ?? $notification->title,
+                fn ($mail) => $mail->to($recipient->email)->subject('[Smart Market] '.$notification->title));
+            $notification->update(['email_status' => $message === null ? 'failed' : 'sent']);
+        } catch (\Throwable) {
+            $notification->update(['email_status' => 'failed']);
+        }
     }
 }

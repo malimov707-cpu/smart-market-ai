@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
@@ -13,9 +15,11 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PriceIntelligenceController;
 use App\Http\Controllers\ProductImportController;
+use App\Http\Controllers\PublicMarketController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\ResolveOrganization;
 use Illuminate\Support\Facades\Route;
 
@@ -107,6 +111,12 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
         Route::post('/imports', [MarketController::class, 'import'])->middleware('throttle:10,1')->name('imports.store');
         Route::get('/imports/template', [MarketController::class, 'template'])->name('imports.template');
 
+        Route::get('/market', [PublicMarketController::class, 'index'])->name('market');
+        Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware('throttle:ai-assistant')->name('market.scan');
+
+        Route::post('/ai/chat', [AiAssistantController::class, 'store'])->middleware('throttle:ai-assistant')->name('ai.chat');
+        Route::delete('/ai/chat', [AiAssistantController::class, 'destroy'])->name('ai.chat.clear');
+
         // Phase 5: notifications and alert rules.
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
         Route::get('/notifications/rules', [NotificationController::class, 'rules'])->name('notification-rules');
@@ -119,4 +129,11 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
         Route::get('/analytics', [AnalyticsController::class, 'dashboard'])->name('analytics');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
     });
+});
+
+Route::middleware(['auth', EnsureActiveAccount::class, 'verified', EnsurePlatformAdmin::class])->group(function (): void {
+    Route::get('/admin', [AdminController::class, 'index'])->name('admin');
+    Route::post('/admin/organizations', [AdminController::class, 'storeOrganization'])->middleware('throttle:10,1')->name('admin.organizations.store');
+    Route::post('/admin/organizations/{organization}', [AdminController::class, 'updateOrganization'])->middleware('throttle:20,1')->name('admin.organizations.update');
+    Route::post('/admin/users/{user}', [AdminController::class, 'update'])->middleware('throttle:20,1')->name('admin.users.update');
 });

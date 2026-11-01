@@ -14,6 +14,13 @@ return [
     |
     */
 
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY'),
+        'model' => env('OPENROUTER_MODEL', 'openrouter/auto'),
+        'timeout' => (int) env('OPENROUTER_TIMEOUT', 35),
+        'max_tokens' => (int) env('OPENROUTER_MAX_TOKENS', 512),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
