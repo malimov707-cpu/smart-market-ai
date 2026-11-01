@@ -11,7 +11,7 @@ it('requires authentication and platform access on every admin endpoint', functi
     $target = User::factory()->create();
     $this->get('/admin')->assertRedirect('/login');
     $this->post('/admin/users/'.$target->id, ['action' => 'suspend'])->assertRedirect('/login');
-    [$owner] = marketIdentity();
+    [$owner] = marketIdentity(isPlatformAdmin: false);
     $this->actingAs($owner)->get('/admin')->assertForbidden();
     $this->post('/admin/users/'.$target->id, ['action' => 'suspend'])->assertForbidden();
     expect($target->fresh()->is_suspended)->toBeFalse();
@@ -19,7 +19,7 @@ it('requires authentication and platform access on every admin endpoint', functi
 
 it('renders cross organization administration without requiring a membership and filters users', function () {
     $admin = User::factory()->create(['is_platform_admin' => true]);
-    [$owner] = marketIdentity();
+    [$owner] = marketIdentity(isPlatformAdmin: false);
     $this->actingAs($admin)->get('/admin?q='.urlencode($owner->email))
         ->assertInertia(fn (Assert $page) => $page->component('Admin')->where('stats.users', 2)
             ->where('stats.organizations', 1)->has('users.data', 1)->where('users.data.0.email', $owner->email)
@@ -52,7 +52,7 @@ it('restores a suspended user and allows normal login again', function () {
     $this->actingAs($admin)->post('/admin/users/'.$target->id, ['action' => 'restore'])->assertSessionHasNoErrors();
     expect($target->fresh()->is_suspended)->toBeFalse();
     $this->post('/logout');
-    $this->post('/login', ['email' => $target->email, 'password' => 'TestPassword123456'])->assertRedirect('/dashboard');
+    $this->post('/login', ['email' => $target->email, 'password' => 'TestPassword123456'])->assertRedirect('/market');
 });
 
 it('revokes user sessions without suspending the account', function () {
@@ -116,7 +116,7 @@ it('creates an administrator owned workspace and opens it without a broken membe
 });
 
 it('allows platform organization edits but rejects unprivileged and invalid changes', function () {
-    [$owner, $organization] = marketIdentity();
+    [$owner, $organization] = marketIdentity(isPlatformAdmin: false);
     $this->actingAs($owner)->post('/admin/organizations', ['name' => 'Denied', 'city' => 'City'])->assertForbidden();
     $this->post('/admin/organizations/'.$organization->id, ['name' => 'Denied', 'city' => 'City'])->assertForbidden();
     $admin = User::factory()->create(['is_platform_admin' => true]);

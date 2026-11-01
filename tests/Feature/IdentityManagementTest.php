@@ -26,7 +26,7 @@ it('accepts only a valid verification signature for the authenticated account', 
     $user = User::factory()->unverified()->create();
     $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1($user->email)]);
     $this->actingAs($user)->get($url.'&tampered=1')->assertForbidden();
-    $this->get($url)->assertRedirect('/dashboard');
+    $this->get($url)->assertRedirect('/market');
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
     $this->assertDatabaseHas('security_events', ['user_id' => $user->id, 'action' => 'email.verified']);
 });
@@ -111,7 +111,7 @@ it('deactivates a non-owner account without deleting data and allows explicit cr
     $this->assertGuest();
     $this->post('/login', ['email' => $user->email, 'password' => 'Password123456'])->assertSessionHasErrors('email');
     $this->post('/account/reactivate', ['email' => $user->email, 'password' => 'wrong'])->assertSessionHasErrors('email');
-    $this->post('/account/reactivate', ['email' => $user->email, 'password' => 'Password123456'])->assertRedirect('/dashboard');
+    $this->post('/account/reactivate', ['email' => $user->email, 'password' => 'Password123456'])->assertRedirect('/admin');
     expect($user->fresh()->is_active)->toBeTrue();
     $this->get('/dashboard')->assertOk();
 });

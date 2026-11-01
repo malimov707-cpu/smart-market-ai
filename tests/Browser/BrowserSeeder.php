@@ -20,16 +20,17 @@ class BrowserSeeder extends Seeder
             throw new \RuntimeException('Browser fixtures require an isolated testing database.');
         }
         foreach (['desktop', 'mobile'] as $platform) {
+            User::factory()->create(['name' => 'Browser Consumer', 'email' => 'consumer-'.$platform.'@example.test', 'password' => 'BrowserPassword123456']);
             User::factory()->create(['name' => 'Platform Admin', 'email' => 'admin-'.$platform.'@example.test', 'password' => 'BrowserPassword123456', 'is_platform_admin' => true]);
             User::factory()->create(['name' => 'Admin Target '.$platform, 'email' => 'admin-target-'.$platform.'@example.test', 'password' => 'BrowserPassword123456']);
-            $user = User::factory()->create(['name' => 'Browser Test Owner', 'email' => $platform.'@example.test', 'password' => 'BrowserPassword123456']);
+            $user = User::factory()->create(['name' => 'Browser Test Owner', 'email' => $platform.'@example.test', 'password' => 'BrowserPassword123456', 'is_platform_admin' => true]);
             $organization = Organization::create(['name' => 'AUTOMATED TEST — '.$platform]);
             $organization->users()->attach($user, ['role' => 'owner']);
-            $manager = User::factory()->create(['name' => 'Browser Test Manager', 'email' => 'manager-'.$platform.'@example.test', 'password' => 'BrowserPassword123456']);
+            $manager = User::factory()->create(['name' => 'Browser Test Manager', 'email' => 'manager-'.$platform.'@example.test', 'password' => 'BrowserPassword123456', 'is_platform_admin' => true]);
             $organization->users()->attach($manager, ['role' => 'manager']);
-            $reviewer = User::factory()->create(['email' => 'reviewer-'.$platform.'@example.test', 'password' => 'BrowserPassword123456']);
+            $reviewer = User::factory()->create(['email' => 'reviewer-'.$platform.'@example.test', 'password' => 'BrowserPassword123456', 'is_platform_admin' => true]);
             $organization->users()->attach($reviewer, ['role' => 'owner']);
-            $auditor = User::factory()->create(['email' => 'auditor-'.$platform.'@example.test', 'password' => 'BrowserPassword123456']);
+            $auditor = User::factory()->create(['email' => 'auditor-'.$platform.'@example.test', 'password' => 'BrowserPassword123456', 'is_platform_admin' => true]);
             $organization->users()->attach($auditor, ['role' => 'auditor']);
             $product = Product::factory()->create(['organization_id' => $organization->id, 'name' => 'QUALITY Analytics Product', 'sku' => 'QUALITY-'.$platform]);
             foreach ([['QUALITY Supplier A', '10', '12'], ['QUALITY Supplier B', '100', '90']] as [$name,$previous,$latest]) {

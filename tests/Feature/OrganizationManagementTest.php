@@ -82,7 +82,7 @@ it('refuses a recipient mismatch and an unverified recipient', function () {
 it('refuses expired revoked and stale-authority invitations', function (string $condition) {
     $this->freezeTime();
     [$owner, $organization] = marketIdentity();
-    $recipient = User::factory()->create();
+    $recipient = User::factory()->create(['is_platform_admin' => true]);
     [$invitation, $token] = app(ManageMemberships::class)->invite($owner, $organization, $recipient->email, 'analyst');
     match ($condition) {
         'expired' => $this->travel(8)->days(),
@@ -113,7 +113,7 @@ it('refuses removing demoting or deactivating the last active owner', function (
 
 it('changes roles and removes members while preserving an active owner', function () {
     [$owner, $organization] = marketIdentity();
-    $member = User::factory()->create();
+    $member = User::factory()->create(['is_platform_admin' => true]);
     $organization->users()->attach($member, ['role' => 'auditor']);
     $this->actingAs($owner)->post('/settings/members/'.$member->id.'/role', ['role' => 'owner'])->assertSessionHasNoErrors();
     $this->post('/settings/members/'.$owner->id.'/role', ['role' => 'analyst'])->assertSessionHasNoErrors();

@@ -21,7 +21,7 @@ function supplierEvidence(User $user, Supplier $supplier): CatalogFile
 it('requires independent documented organization approval and preserves evidence', function () {
     Storage::fake('catalog');
     [$owner,$org] = marketIdentity();
-    $manager = User::factory()->create();
+    $manager = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($manager, ['role' => 'manager']);
     $supplier = Supplier::factory()->create(['organization_id' => $org->id]);
     $file = supplierEvidence($manager, $supplier);
@@ -48,7 +48,7 @@ it('rejects self approval and organization owners cannot grant platform verifica
 it('supports rejection and separately permissioned platform decisions', function () {
     Storage::fake('catalog');
     [$owner,$org] = marketIdentity();
-    $reviewer = User::factory()->create();
+    $reviewer = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($reviewer, ['role' => 'owner']);
     DB::table('platform_permissions')->insert(['user_id' => $reviewer->id, 'permission' => 'supplier.verify']);
     $supplier = Supplier::factory()->create(['organization_id' => $org->id]);
@@ -79,7 +79,7 @@ it('requires real offer evidence for review and prevents duplicate feedback', fu
 });
 it('opens and independently resolves a dispute with moderation audit', function () {
     [$buyer,$org] = marketIdentity('buyer');
-    $owner = User::factory()->create();
+    $owner = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($owner, ['role' => 'owner']);
     $offer = Offer::factory()->create(['organization_id' => $org->id]);
     $this->actingAs($buyer)->post('/suppliers/'.$offer->supplier_id.'/reviews', ['offer_id' => $offer->id, 'rating' => 2, 'body' => 'Actual offer terms need a correction after review.'])->assertSessionHasNoErrors();

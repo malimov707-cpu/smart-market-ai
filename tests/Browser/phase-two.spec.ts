@@ -6,7 +6,7 @@ async function login(page: Page, email: string) {
     await form.getByLabel('Email', { exact: true }).fill(email);
     await form.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await form.getByRole('button', { name: 'Kirish', exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    await expect(page).toHaveURL(/admin/);
 }
 async function logout(page: Page) {
     const menu = page.getByRole('button', { name: 'Menyuni ochish' }); if (await menu.isVisible()) await menu.click();

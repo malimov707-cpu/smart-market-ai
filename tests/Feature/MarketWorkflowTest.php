@@ -23,14 +23,15 @@ it('redirects unauthenticated users from every protected screen', function (stri
     $this->get('/'.$page)->assertRedirect('/login');
 })->with(['dashboard', 'products', 'suppliers', 'offers', 'comparison', 'imports', 'ai', 'settings', 'imports/template']);
 
-it('registers an owner and organization without accepting a supplied role', function () {
+it('registers an ordinary user without creating an organization or accepting a supplied role', function () {
     $this->post('/register', [
         'name' => 'Test Owner', 'organization' => 'Test Business', 'email' => 'owner@example.test',
         'password' => 'strongPassword123', 'password_confirmation' => 'strongPassword123', 'role' => 'platform_admin',
     ])->assertRedirect('/market');
     $this->assertAuthenticated();
-    $this->assertDatabaseHas('organization_user', ['role' => 'owner']);
-    $this->assertDatabaseHas('organizations', ['name' => 'Test Business']);
+    $this->assertDatabaseCount('organization_user', 0);
+    $this->assertDatabaseCount('organizations', 0);
+    expect(User::where('email', 'owner@example.test')->sole()->is_platform_admin)->toBeFalse();
 });
 
 it('refuses a weak password and stores no organization', function () {
@@ -43,7 +44,7 @@ it('logs in and logs out with invalid credentials rejected', function () {
     $user = User::factory()->create(['password' => 'Password123456']);
     $this->post('/login', ['email' => $user->email, 'password' => 'bad'])->assertSessionHasErrors('email');
     $this->assertGuest();
-    $this->post('/login', ['email' => $user->email, 'password' => 'Password123456'])->assertRedirect('/dashboard');
+    $this->post('/login', ['email' => $user->email, 'password' => 'Password123456'])->assertRedirect('/market');
     $this->assertAuthenticatedAs($user);
     $this->post('/logout')->assertRedirect('/login');
     $this->assertGuest();

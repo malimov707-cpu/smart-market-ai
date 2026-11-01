@@ -5,7 +5,7 @@ async function login(page: Page, email: string) {
     await form.getByLabel('Email', { exact: true }).fill(email);
     await form.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await form.getByRole('button', { name: 'Kirish', exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    await expect(page).toHaveURL(/admin/);
 }
 test('latest price historical cutoff provenance independent review trend and currency approval', async ({ page }, info) => {
     test.setTimeout(90000);

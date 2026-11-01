@@ -17,6 +17,19 @@ export default function Layout({ title, children, action }: { title: string; chi
     const { auth, organization, organizations, flash } = usePage<Shared>().props;
     const [open, setOpen] = useState(false);
     const current = usePage().url.split('?')[0];
+    if (current === '/market') {
+        return <div className="workspace">
+            <Head title={title} />
+            <button className="mobile-menu" onClick={() => setOpen(!open)} aria-label="Menyuni ochish">{open ? <X /> : <Menu />}</button>
+            <aside className={`sidebar ${open ? 'is-open' : ''}`}>
+                <Link href="/market" className="brand"><span className="brand-icon"><Activity size={24} /></span><span>smartmarket<span className="brand-ai">AI</span><small>HAQIQIY NARXLAR. OQILONA XARID.</small></span></Link>
+                <p className="nav-caption">SHAXSIY PANEL</p>
+                <nav><Link href="/market" className="nav-item active"><Sparkles size={19} />Suratdan narx topish</Link><Link href="/account" className="nav-item"><Settings2 size={19} />Hisob va xavfsizlik</Link>{auth.is_platform_admin && <Link href="/admin" className="nav-item"><LayoutDashboard size={19} />Admin panel</Link>}</nav>
+                <div className="sidebar-bottom"><div className="help-card"><CircleHelp size={20} /><strong>Narxni qanday topaman?</strong><p>Mahsulotni suratga oling yoki nomini qidiring. Narx, o‘lchov birligi va do‘kon manbasini tekshiring.</p></div><div className="profile"><span className="profile-avatar">{auth.name.slice(0, 1)}</span><span><Link href="/account"><strong>{auth.name}</strong></Link><small>{auth.is_platform_admin ? 'Admin' : 'Foydalanuvchi'}</small></span><Link href="/logout" method="post" as="button" aria-label="Chiqish"><LogOut size={18} /></Link></div></div>
+            </aside>
+            <div className="main-shell"><header className="topbar"><span>Shaxsiy panel <span className="breadcrumb">/</span> <strong>{title}</strong></span><CommandMenu admin={auth.is_platform_admin} hasWorkspace={false} /></header><main><div className="page-heading"><div><p className="eyebrow">TOSHKENT · SMART MARKET AI</p><h1>{title}</h1></div>{action}</div>{flash.success && <div className="success" role="status">{flash.success}</div>}{children}<footer>Smart Market AI <span>Narxlar manbasi va tekshirilgan vaqti bilan</span></footer></main></div>
+        </div>;
+    }
     return <div className="workspace">
         <Head title={title} />
         <button className="mobile-menu" onClick={() => setOpen(!open)} aria-label="Menyuni ochish">{open ? <X /> : <Menu />}</button>
@@ -32,7 +45,7 @@ export default function Layout({ title, children, action }: { title: string; chi
             <Link href="/notifications" className={`nav-item ${current === '/notifications' ? 'active' : ''}`}><Bell size={19} />Bildirishnomalar</Link>
             <Link href="/settings" className={`nav-item ${current === '/settings' ? 'active' : ''}`}><Settings2 size={19} />Tashkilot sozlamalari</Link>
             <div className="sidebar-bottom"><div className="help-card"><CircleHelp size={20} /><strong>Ishni nimadan boshlash kerak?</strong><p>Mahsulot qo‘shing va haqiqiy takliflarni import qiling.</p><Link href="/import-center">Import markaziga o‘tish <ArrowUpRight size={15} /></Link></div>
-            <div className="profile"><span className="profile-avatar">{auth.name.slice(0, 1)}</span><span><Link href="/account"><strong>{auth.name}</strong></Link><small>{organization.pivot.role}</small></span><Link href="/logout" method="post" as="button" aria-label="Chiqish"><LogOut size={18} /></Link></div></div>
+            <div className="profile"><span className="profile-avatar">{auth.name.slice(0, 1)}</span><span><Link href="/account"><strong>{auth.name}</strong></Link><small>{auth.is_platform_admin ? 'Admin' : 'Foydalanuvchi'}</small></span><Link href="/logout" method="post" as="button" aria-label="Chiqish"><LogOut size={18} /></Link></div></div>
         </aside>
         <div className="main-shell"><header className="topbar"><span>Ish maydoni <span className="breadcrumb">/</span> <strong>{title}</strong></span><CommandMenu admin={auth.is_platform_admin} /></header>
             <main><div className="page-heading"><div><p className="eyebrow">SMART MARKET INTELLIGENCE</p><h1>{title}</h1></div>{action}</div>

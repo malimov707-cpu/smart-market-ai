@@ -27,7 +27,7 @@ class VerificationController extends Controller
             SecurityEvent::create(['user_id' => $request->user()->id, 'action' => 'email.verified']);
         }
 
-        return redirect()->intended(route('dashboard'))->with('success', 'Email tasdiqlandi.');
+        return to_route($request->user()->is_platform_admin ? 'admin' : 'market')->with('success', 'Email tasdiqlandi.');
     }
 
     public function send(Request $request): RedirectResponse

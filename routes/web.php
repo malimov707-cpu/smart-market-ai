@@ -36,6 +36,8 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
 });
 Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void {
+    Route::get('/market', [PublicMarketController::class, 'index'])->name('market');
+    Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware(['verified', 'throttle:ai-assistant'])->name('market.scan');
     Route::get('/verify-email', [VerificationController::class, 'notice'])->name('verification.notice');
     Route::get('/verify-email/{id}/{hash}', [VerificationController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('/email/verification-notification', [VerificationController::class, 'send'])->middleware('throttle:3,1')->name('verification.send');
@@ -48,8 +50,8 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
     Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('verified')->name('invitations.show');
     Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware(['verified', 'throttle:6,1'])->name('invitations.accept');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::post('/organization', [AuthController::class, 'switchOrganization'])->name('organization.switch');
-    Route::middleware(['verified', ResolveOrganization::class])->group(function (): void {
+    Route::post('/organization', [AuthController::class, 'switchOrganization'])->middleware(['verified', EnsurePlatformAdmin::class])->name('organization.switch');
+    Route::middleware(['verified', EnsurePlatformAdmin::class, ResolveOrganization::class])->group(function (): void {
         foreach (['dashboard', 'offers', 'comparison', 'imports', 'ai'] as $page) {
             Route::get('/'.$page, [MarketController::class, 'index'])->name($page);
         }
@@ -110,9 +112,6 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
         Route::get('/compare', [MarketController::class, 'compare'])->name('compare');
         Route::post('/imports', [MarketController::class, 'import'])->middleware('throttle:10,1')->name('imports.store');
         Route::get('/imports/template', [MarketController::class, 'template'])->name('imports.template');
-
-        Route::get('/market', [PublicMarketController::class, 'index'])->withoutMiddleware('verified')->name('market');
-        Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware('throttle:ai-assistant')->name('market.scan');
 
         Route::post('/ai/chat', [AiAssistantController::class, 'store'])->middleware('throttle:ai-assistant')->name('ai.chat');
         Route::delete('/ai/chat', [AiAssistantController::class, 'destroy'])->name('ai.chat.clear');

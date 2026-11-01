@@ -7,7 +7,7 @@ test('owner completes catalog, offer comparison and organization invitation work
     await login.getByLabel('Email', { exact: true }).fill(`${platform}@example.test`);
     await page.getByRole('form', { name: 'Hisobga kirish' }).getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await page.getByRole('button', { name: 'Kirish', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Umumiy ko‘rinish', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin$/);
     await page.goto('/products');
     await page.getByRole('button', { name: 'Yangi yozuv' }).click();
     await page.getByLabel('Mahsulot nomi', { exact: true }).fill('AUTOMATED TEST Flour');
@@ -48,7 +48,6 @@ test('owner completes catalog, offer comparison and organization invitation work
 test('new registrations open the price panel while private workspace remains protected', async ({ page }, info) => {
     await page.goto('/register');
     await page.getByLabel('Ismingiz', { exact: true }).fill('Browser Registration Test');
-    await page.getByLabel('Tashkilot nomi', { exact: true }).fill('AUTOMATED TEST registration');
     await page.getByLabel('Email', { exact: true }).fill(`register-${info.project.name}@example.test`);
     await page.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await page.getByLabel('Parolni tasdiqlang', { exact: true }).fill('BrowserPassword123456');

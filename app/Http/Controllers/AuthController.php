@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\RegisterRequest;
-use App\Models\Organization;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +19,7 @@ class AuthController extends Controller
 {
     public function home(Request $request): RedirectResponse
     {
-        return to_route($request->user() && ! $request->user()->hasVerifiedEmail() ? 'market' : 'dashboard');
+        return to_route($request->user()?->is_platform_admin ? 'admin' : 'market');
     }
 
     public function show(Request $request): Response
@@ -31,17 +29,11 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): RedirectResponse
     {
-        $user = DB::transaction(function () use ($request): User {
-            $user = User::create($request->safe()->only(['name', 'email', 'password']));
-            $organization = Organization::create(['name' => $request->validated('organization')]);
-            $organization->users()->attach($user, ['role' => 'owner']);
-
-            return $user;
-        });
+        $user = User::create($request->safe()->only(['name', 'email', 'password']));
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('security_version', $user->fresh()->security_version);
-        $request->session()->put('organization_id', $user->organizations()->firstOrFail()->id);
+        $request->session()->forget('organization_id');
         $request->session()->forget('url.intended');
         try {
             event(new Registered($user));
@@ -66,11 +58,11 @@ class AuthController extends Controller
             $request->session()->forget('organization_id');
         }
         SecurityEvent::create(['user_id' => $request->user()->id, 'action' => 'account.login']);
-        if (! $request->user()->hasVerifiedEmail()) {
+        if (! $request->user()->hasVerifiedEmail() || ! $request->user()->is_platform_admin) {
             return to_route('market');
         }
 
-        return redirect()->intended(route($request->user()->is_platform_admin ? 'admin' : 'dashboard'));
+        return redirect()->intended(route($request->user()->is_platform_admin ? 'admin' : 'market'));
     }
 
     public function logout(Request $request): RedirectResponse

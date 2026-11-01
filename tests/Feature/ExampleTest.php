@@ -1,7 +1,7 @@
 <?php
 
-test('the application redirects to the protected workspace', function () {
+test('the application redirects to the consumer price panel', function () {
     $response = $this->get('/');
 
-    $response->assertRedirect('/dashboard');
+    $response->assertRedirect('/market');
 });

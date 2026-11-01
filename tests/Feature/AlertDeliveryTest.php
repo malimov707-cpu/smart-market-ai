@@ -13,9 +13,9 @@ uses(LazilyRefreshDatabase::class);
 
 it('resolves only explicit active subscribers and deduplicates personal global scope recipients', function () {
     [$owner,$org] = marketIdentity();
-    $other = User::factory()->create();
+    $other = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($other, ['role' => 'manager']);
-    $outsider = User::factory()->create();
+    $outsider = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($outsider, ['role' => 'auditor']);
     $service = app(ManageAlerts::class);
     $input = ['name' => 'TEST personal subscription', 'event_type' => 'new_offer', 'scope_type' => 'global', 'threshold_kind' => 'none', 'frequency' => 'instant', 'channels' => ['email']];
@@ -36,7 +36,7 @@ it('excludes revoked and deactivated subscribers and enforces owner only prefere
     $service = app(ManageAlerts::class);
     $input = ['name' => 'TEST', 'event_type' => 'new_offer', 'scope_type' => 'global', 'threshold_kind' => 'none', 'frequency' => 'instant', 'channels' => ['app']];
     $rule = $service->create($owner, $org, $input);
-    $other = User::factory()->create();
+    $other = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($other, ['role' => 'owner']);
     $this->actingAs($other)->post('/notifications/rules/'.$rule->id, ['enabled' => false])->assertNotFound();
     $owner->forceFill(['is_active' => false])->save();
@@ -63,7 +63,7 @@ it('keeps in app notification when SMTP fails and never sends opted out subscrip
 
 it('records SMTP acceptance per subscribed recipient without claiming delivery or leaking recipients', function () {
     [$owner,$org] = marketIdentity();
-    $other = User::factory()->create();
+    $other = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($other, ['role' => 'owner']);
     $service = app(ManageAlerts::class);
     foreach ([$owner, $other] as $actor) {

@@ -29,7 +29,7 @@ test('administrator provisions a workspace and navigates to the decision desk wi
     await form.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await form.getByRole('button', { name: 'Kirish', exact: true }).click();
     await expect(page).toHaveURL(/\/admin$/);
-    await page.getByRole('link', { name: 'Yangi ish maydoni', exact: true }).click();
+    await page.getByRole('link', { name: 'Ish maydonlari', exact: true }).click();
     await page.getByLabel('Yangi tashkilot nomi', { exact: true }).fill(`ADMIN WORKSPACE ${platform}`);
     const create = page.locator('form').filter({ has: page.getByLabel('Yangi tashkilot nomi', { exact: true }) });
     await create.getByRole('button', { name: 'Ish maydonini yaratish', exact: true }).click();

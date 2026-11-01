@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(RequestContext::class);
         $middleware->trustProxies(at: ['127.0.0.1', '::1']);
-        $middleware->redirectUsersTo(fn (Request $request): string => route($request->user()?->is_platform_admin ? 'admin' : ($request->user()?->hasVerifiedEmail() ? 'dashboard' : 'market')));
+        $middleware->redirectUsersTo(fn (Request $request): string => route($request->user()?->is_platform_admin ? 'admin' : 'market'));
         $middleware->web(append: [HandleInertiaRequests::class], replace: [StartSession::class => CatalogSession::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

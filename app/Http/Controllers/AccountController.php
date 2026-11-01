@@ -127,6 +127,6 @@ class AccountController extends Controller
         $request->session()->regenerate();
         $request->session()->put('security_version', $user->security_version);
 
-        return to_route('dashboard')->with('success', 'Hisob qayta faollashtirildi.');
+        return to_route($user->is_platform_admin ? 'admin' : 'market')->with('success', 'Hisob qayta faollashtirildi.');
     }
 }

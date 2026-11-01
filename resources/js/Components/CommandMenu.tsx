@@ -22,7 +22,7 @@ export default function CommandMenu({ admin = false, hasWorkspace = true }: { ad
     const [selected, setSelected] = useState(0);
     const dialog = useRef<HTMLDialogElement>(null);
     const trigger = useRef<HTMLButtonElement>(null);
-    const items = [...(admin ? [{ name: 'Admin panel', description: 'Platformani boshqarish', href: '/admin' }] : []), ...pages.filter(page => hasWorkspace || page.href === '/account')].filter(item => `${item.name} ${item.description}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+    const items = [...(admin ? [{ name: 'Admin panel', description: 'Platformani boshqarish', href: '/admin' }] : []), ...pages.filter(page => hasWorkspace || ['/account', '/market'].includes(page.href))].filter(item => `${item.name} ${item.description}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
     useEffect(() => {
         const key = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setOpen(value => !value); } };
         window.addEventListener('keydown', key);

@@ -115,7 +115,7 @@ it('requires independent price reviewer and preserves evidence historical verifi
     $input = offerInput($org);
     $offer = app(RecordOffer::class)->execute($author, $org, $input);
     $file = priceEvidence($offer, $author);
-    $reviewer = User::factory()->create();
+    $reviewer = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($reviewer, ['role' => 'owner']);
     $data = ['scope' => 'organization', 'status' => 'pending', 'reason' => 'TEST documented price evidence', 'evidence_file_id' => $file->id];
     $this->actingAs($author)->post('/prices/'.$offer->id.'/review', $data)->assertSessionHasNoErrors();
@@ -141,7 +141,7 @@ it('denies missing evidence unauthorized roles and platform price self grants', 
     $file = priceEvidence($offer, $owner);
     $data['evidence_file_id'] = $file->id;
     $this->post('/prices/'.$offer->id.'/review', [...$data, 'scope' => 'platform'])->assertForbidden();
-    $auditor = User::factory()->create();
+    $auditor = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($auditor, ['role' => 'auditor']);
     $this->actingAs($auditor)->post('/prices/'.$offer->id.'/review', $data)->assertForbidden();
     $this->post('/exchange-rates', [])->assertForbidden();
@@ -153,7 +153,7 @@ it('uses independently approved historical exchange rates with exact half up rou
     [$owner, $org] = marketIdentity();
     $input = offerInput($org);
     $offer = app(RecordOffer::class)->execute($owner, $org, [...$input, 'currency' => 'USD', 'price' => '1.01', 'delivery_fee' => '0.00']);
-    $reviewer = User::factory()->create();
+    $reviewer = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($reviewer, ['role' => 'owner']);
     $data = ['currency' => 'USD', 'rate' => '100.5', 'source' => 'TEST ONLY source', 'source_reference' => 'TEST ONLY bulletin', 'effective_at' => now()->subHour()->toIso8601String(), 'expires_at' => now()->addDay()->toIso8601String()];
     $service = app(ExchangeRates::class);
@@ -251,7 +251,7 @@ it('keeps historical supplier availability after later suspension archive and re
 it('never revives an older rate after the newest approved rate expires', function () {
     $this->freezeTime();
     [$owner, $org] = marketIdentity();
-    $reviewer = User::factory()->create();
+    $reviewer = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($reviewer, ['role' => 'owner']);
     $service = app(ExchangeRates::class);
     $data = ['currency' => 'USD', 'rate' => '0.000000000001', 'source' => 'TEST ONLY', 'source_reference' => 'TEST ONLY', 'effective_at' => now()->subHours(2), 'expires_at' => now()->addDays(2)];
@@ -268,7 +268,7 @@ it('never revives an older rate after the newest approved rate expires', functio
 it('enforces price platform permission independently from supplier grants', function () {
     [$author, $org] = marketIdentity();
     $offer = app(RecordOffer::class)->execute($author, $org, offerInput($org));
-    $reviewer = User::factory()->create();
+    $reviewer = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($reviewer, ['role' => 'owner']);
     DB::table('platform_permissions')->insert(['user_id' => $reviewer->id, 'permission' => 'supplier.verify']);
     $file = priceEvidence($offer, $author);
@@ -317,7 +317,7 @@ it('keeps old content deduplication across source defaults and different submitt
     [$user, $org] = marketIdentity();
     $input = offerInput($org);
     $first = app(RecordOffer::class)->execute($user, $org, $input);
-    $other = User::factory()->create();
+    $other = User::factory()->create(['is_platform_admin' => true]);
     $org->users()->attach($other, ['role' => 'buyer']);
     $same = app(RecordOffer::class)->execute($other, $org, [...$input, 'source_type' => 'manual', 'source_identifier' => null, 'task_reference' => null, 'correction_reason' => null]);
     expect($same->id)->toBe($first->id);

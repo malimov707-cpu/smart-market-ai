@@ -7,7 +7,7 @@ test('copilot shows configuration state or handles successful and failed chat re
     await login.getByLabel('Email', { exact: true }).fill(`manager-${platform}@example.test`);
     await login.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await login.getByRole('button', { name: 'Kirish', exact: true }).click();
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/admin$/);
     await page.goto('/ai');
     const chat = page.getByRole('region', { name: 'OpenRouter AI yordamchi' });
     const question = chat.getByLabel('AI yordamchiga savol');

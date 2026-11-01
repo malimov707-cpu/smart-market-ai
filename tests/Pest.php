@@ -59,9 +59,9 @@ function something()
     // ..
 }
 
-function marketIdentity(string $role = 'owner'): array
+function marketIdentity(string $role = 'owner', bool $isPlatformAdmin = true): array
 {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_platform_admin' => $isPlatformAdmin]);
     $organization = Organization::factory()->create();
     $organization->users()->attach($user, ['role' => $role]);
 
@@ -81,7 +81,7 @@ function offerInput(Organization $organization): array
 
 function comparisonUser(Offer $offer): User
 {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_platform_admin' => true]);
     $user->organizations()->attach($offer->organization_id, ['role' => 'auditor']);
 
     return $user;
