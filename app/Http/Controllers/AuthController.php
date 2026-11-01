@@ -19,6 +19,11 @@ use Inertia\Response;
 
 class AuthController extends Controller
 {
+    public function home(Request $request): RedirectResponse
+    {
+        return to_route($request->user() && ! $request->user()->hasVerifiedEmail() ? 'market' : 'dashboard');
+    }
+
     public function show(Request $request): Response
     {
         return Inertia::render('Auth', ['register' => $request->routeIs('register')]);
@@ -36,13 +41,15 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('security_version', $user->fresh()->security_version);
+        $request->session()->put('organization_id', $user->organizations()->firstOrFail()->id);
+        $request->session()->forget('url.intended');
         try {
             event(new Registered($user));
         } catch (\Throwable) {
             SecurityEvent::create(['user_id' => $user->id, 'action' => 'verification.mail_failed']);
         }
 
-        return to_route('dashboard');
+        return to_route('market')->with('success', 'Hisobingiz yaratildi. Endi bozor narxlarini qidirishingiz mumkin.');
     }
 
     public function login(Request $request): RedirectResponse
@@ -54,7 +61,14 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $request->session()->put('security_version', $request->user()->security_version);
+        $selected = $request->session()->get('organization_id');
+        if ($selected && ! $request->user()->organizations()->whereKey($selected)->exists()) {
+            $request->session()->forget('organization_id');
+        }
         SecurityEvent::create(['user_id' => $request->user()->id, 'action' => 'account.login']);
+        if (! $request->user()->hasVerifiedEmail()) {
+            return to_route('market');
+        }
 
         return redirect()->intended(route($request->user()->is_platform_admin ? 'admin' : 'dashboard'));
     }

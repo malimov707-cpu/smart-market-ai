@@ -21,7 +21,7 @@ export default function Layout({ title, children, action }: { title: string; chi
         <Head title={title} />
         <button className="mobile-menu" onClick={() => setOpen(!open)} aria-label="Menyuni ochish">{open ? <X /> : <Menu />}</button>
         <aside className={`sidebar ${open ? 'is-open' : ''}`}>
-            <Link href="/dashboard" className="brand"><span className="brand-icon"><Activity size={24} /></span><span>smartmarket<span className="brand-ai">AI</span><small>BOZORNI ANGLANG. OQILONA XARID QILING.</small></span></Link>
+            <Link href={auth.email_verified_at === null ? '/market' : '/dashboard'} className="brand"><span className="brand-icon"><Activity size={24} /></span><span>smartmarket<span className="brand-ai">AI</span><small>BOZORNI ANGLANG. OQILONA XARID QILING.</small></span></Link>
             <label className="organization-picker"><span className="org-avatar">{organization.name.slice(0, 1)}</span><span className="org-select"><small>ISH MAYDONI</small><select aria-label="Tashkilotni tanlash" value={organization.id} onChange={event => router.post('/organization', { organization_id: event.target.value })}>{organizations.map(org => <option key={org.id} value={org.id}>{org.name}</option>)}</select></span><ChevronDown size={15} /></label>
             <p className="nav-caption">BOSHQARUV PANELI</p>
             <nav>{navigation.map(item => <Link key={item.href} href={item.href} className={`nav-item ${(current === item.href || (item.href === '/import-center' && current.startsWith('/import-center/'))) ? 'active' : ''}`} onClick={() => setOpen(false)}><item.icon size={19} />{item.label}</Link>)}</nav>

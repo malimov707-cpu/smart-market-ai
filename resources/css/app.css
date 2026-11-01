@@ -292,3 +292,21 @@ p,small,.muted{color:var(--muted)}h1,h2,h3{color:#e6f2fa}h1{font-weight:550;lett
 @media(max-width:1200px) { .public-price-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }.market-hero { padding: 25px; gap: 20px; }.market-source-grid { grid-template-columns: 1fr; } }
 @media(max-width:900px) { .market-hero { grid-template-columns: 1fr; }.public-price-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.market-hero h2 { font-size: 36px; }.camera-drop { min-height: 180px; } }
 @media(max-width:700px) { .market-hero { padding: 24px 17px; }.market-hero h2 { font-size: 35px; }.market-location { font-size: 8px; max-width: 110px; line-height: 1.7; }.market-search { gap: 8px; flex-wrap: wrap; }.market-search input { font-size: 12px; }.market-search .button { flex-basis: 100%; }.public-price-grid { gap: 10px; }.public-product-body { padding: 12px; }.public-product-image { height: 140px; padding: 10px; }.public-product-image img { height: 115px; }.public-product-price { font-size: 22px; }.public-product-body h3 { font-size: 11px; }.public-product-body .decision-link { font-size: 8px; }.public-expiry { font-size: 7px; } }
+
+.market-departments { display: flex; flex-wrap: wrap; gap: 9px; margin: 25px 0 16px; }
+.market-departments a { padding: 11px 17px; border: 1px solid #264859; border-radius: 8px; font-size: 11px; color: #97bbcf; background: #0c1c29; }
+.market-departments a.selected { color: #68e2f2; background: #0b3546; border-color: #257d96; }
+.source-filter:hover, .source-filter.source-selected { border-color: #28b3cc; background: #0a293b; }
+.public-source.source-tezqur { background: #0b6e51; }
+.public-source.source-kslux { background: #3c46a0; }
+.public-source.source-alstroy { background: #855a13; }
+.product-stock { align-self: start; margin-top: 12px; }
+.public-expiry + .public-expiry { margin-top: 0; }
+@media(max-width:700px) { .market-departments a { padding: 10px; font-size: 9px; } }
+
+.verification-banner { margin: 24px 0; border-color: #4a623c; background: linear-gradient(120deg,#16251e,#0b1924); }
+.verification-banner > div:first-child { display: flex; gap: 10px; align-items: center; color: #8ed7ab; }
+.verification-banner h2 { margin: 0; font-size: 17px; }
+.verification-banner > p { margin: 14px 0; }
+.verification-banner .notice { margin: 15px 0; }
+.verification-actions { display: flex; flex-wrap: wrap; align-items: start; gap: 10px; }

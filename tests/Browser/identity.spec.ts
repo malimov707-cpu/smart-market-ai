@@ -45,7 +45,7 @@ test('owner completes catalog, offer comparison and organization invitation work
     await expect(page.getByText('Joriy sessiya', { exact: true })).toBeVisible();
 });
 
-test('new registrations must verify their email before opening the workspace', async ({ page }, info) => {
+test('new registrations open the price panel while private workspace remains protected', async ({ page }, info) => {
     await page.goto('/register');
     await page.getByLabel('Ismingiz', { exact: true }).fill('Browser Registration Test');
     await page.getByLabel('Tashkilot nomi', { exact: true }).fill('AUTOMATED TEST registration');
@@ -53,6 +53,16 @@ test('new registrations must verify their email before opening the workspace', a
     await page.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await page.getByLabel('Parolni tasdiqlang', { exact: true }).fill('BrowserPassword123456');
     await page.getByRole('button', { name: 'Hisob yaratish', exact: true }).click();
+    await expect(page).toHaveURL(/\/market$/);
+    await expect(page.getByRole('heading', { name: 'Toshkent narxlari', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Narxlar panelingiz tayyor', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Suratdan topish', exact: true })).toBeDisabled();
+    await page.getByLabel('Bozor mahsulotini qidirish').fill('sement');
+    await page.getByRole('button', { name: 'Narxlarni topish', exact: true }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/market' && url.searchParams.get('q') === 'sement');
+    await page.goto('/products');
     await expect(page).toHaveURL(/verify-email/);
     await expect(page.getByRole('button', { name: 'Tasdiqlash xatini qayta yuborish' })).toBeVisible();
+    await page.getByRole('link', { name: 'Narxlar panelini ochish', exact: true }).click();
+    await expect(page).toHaveURL(/\/market$/);
 });

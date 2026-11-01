@@ -23,7 +23,7 @@ use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\ResolveOrganization;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+Route::get('/', [AuthController::class, 'home']);
 Route::middleware('guest')->group(function (): void {
     Route::post('/account/reactivate', [AccountController::class, 'reactivate'])->middleware('throttle:3,1')->name('account.reactivate');
     Route::get('/forgot-password', [PasswordController::class, 'request'])->name('password.request');
@@ -111,7 +111,7 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
         Route::post('/imports', [MarketController::class, 'import'])->middleware('throttle:10,1')->name('imports.store');
         Route::get('/imports/template', [MarketController::class, 'template'])->name('imports.template');
 
-        Route::get('/market', [PublicMarketController::class, 'index'])->name('market');
+        Route::get('/market', [PublicMarketController::class, 'index'])->withoutMiddleware('verified')->name('market');
         Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware('throttle:ai-assistant')->name('market.scan');
 
         Route::post('/ai/chat', [AiAssistantController::class, 'store'])->middleware('throttle:ai-assistant')->name('ai.chat');

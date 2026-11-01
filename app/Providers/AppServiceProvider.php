@@ -13,6 +13,7 @@ use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\WorkerIdle;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            Vite::useHotFile(storage_path('framework/production-vite.hot'));
+        }
+
         RateLimiter::for('ai-assistant', fn (Request $request) => Limit::perMinute(6)->by('ai:'.($request->user()?->id ?? $request->ip())));
         Event::listen([WorkerIdle::class, JobProcessing::class], [QueueWorkerHeartbeat::class, 'record']);
     }

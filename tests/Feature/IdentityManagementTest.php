@@ -14,7 +14,7 @@ uses(LazilyRefreshDatabase::class);
 it('sends email verification after registration and blocks an unverified workspace', function () {
     Notification::fake();
     $this->post('/register', ['name' => 'New Owner', 'organization' => 'Test Org', 'email' => 'new@example.test',
-        'password' => 'Password123456', 'password_confirmation' => 'Password123456'])->assertRedirect('/dashboard');
+        'password' => 'Password123456', 'password_confirmation' => 'Password123456'])->assertRedirect('/market');
     $user = User::where('email', 'new@example.test')->sole();
     Notification::assertSentTo($user, VerifyEmail::class);
     $this->get('/dashboard')->assertRedirect('/verify-email');

@@ -27,7 +27,7 @@ it('registers an owner and organization without accepting a supplied role', func
     $this->post('/register', [
         'name' => 'Test Owner', 'organization' => 'Test Business', 'email' => 'owner@example.test',
         'password' => 'strongPassword123', 'password_confirmation' => 'strongPassword123', 'role' => 'platform_admin',
-    ])->assertRedirect('/dashboard');
+    ])->assertRedirect('/market');
     $this->assertAuthenticated();
     $this->assertDatabaseHas('organization_user', ['role' => 'owner']);
     $this->assertDatabaseHas('organizations', ['name' => 'Test Business']);
