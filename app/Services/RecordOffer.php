@@ -24,10 +24,7 @@ class RecordOffer
     public function execute(User $user, Organization $organization, array $data, string $provenance = 'manual', ?ImportBatch $import = null): Offer
     {
         Gate::forUser($user)->authorize('manage', $organization);
-        $data = Validator::make($data, MarketRequest::offerRules($organization->id))->validate();
-        if ($import !== null) {
-            abort_unless($import->organization_id === $organization->id && $import->type === 'offers' && $import->status === 'processing' && $import->reviewed_at !== null, 409);
-        }
+        $data = Validator::make($data, MarketRequest::offerRules())->validate();
         $data['source_type'] = $provenance === 'csv' ? 'csv' : ($data['source_type'] ?? 'manual');
         $data['submitted_by'] = $user->id;
         $data['price'] = bcadd((string) $data['price'], '0', 2);
@@ -52,19 +49,28 @@ class RecordOffer
         $fingerprint = hash('sha256', json_encode($content, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($organization, $user, $data, $fingerprint, $provenance, $import): Offer {
-            $supplier = Supplier::where('organization_id', $organization->id)->lockForUpdate()->findOrFail($data['supplier_id']);
-            $product = Product::where('organization_id', $organization->id)->lockForUpdate()->findOrFail($data['product_id']);
+            $product = Product::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($data['product_id']);
+            $recordOrganization = Organization::whereKey($product->organization_id)->lockForUpdate()->firstOrFail();
+            Gate::forUser($user)->authorize('manage', $recordOrganization);
+            $supplier = Supplier::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($data['supplier_id']);
+            if ($supplier->organization_id !== $product->organization_id) {
+                $field = $product->organization_id === $organization->id ? 'supplier_id' : 'product_id';
+                throw ValidationException::withMessages([$field => 'Mahsulot va yetkazib beruvchi bir xil eski ma’lumotlar doirasida bo‘lishi kerak.']);
+            }
+            if ($import !== null) {
+                abort_unless($import->organization_id === $product->organization_id && $import->type === 'offers' && $import->status === 'processing' && $import->reviewed_at !== null, 409);
+            }
             if ($supplier->archived_at || $product->archived_at) {
                 throw ValidationException::withMessages(['supplier_id' => 'Arxivlangan mahsulot/yetkazib beruvchi uchun yangi taklif yozilmaydi.']);
             }
             if (! empty($data['evidence_file_id'])) {
-                $evidence = CatalogFile::where('organization_id', $organization->id)->where('supplier_id', $supplier->id)->whereNull('retired_at')->lockForUpdate()->find($data['evidence_file_id']);
+                $evidence = CatalogFile::where('organization_id', $product->organization_id)->where('supplier_id', $supplier->id)->whereNull('retired_at')->lockForUpdate()->find($data['evidence_file_id']);
                 if (! $evidence) {
                     throw ValidationException::withMessages(['evidence_file_id' => 'Shu supplierga tegishli faol dalilni tanlang.']);
                 }
             }
             if (! empty($data['correction_of_id'])) {
-                $original = Offer::where('organization_id', $organization->id)->where('product_id', $product->id)->where('supplier_id', $supplier->id)->find($data['correction_of_id']);
+                $original = Offer::where('organization_id', $product->organization_id)->where('product_id', $product->id)->where('supplier_id', $supplier->id)->find($data['correction_of_id']);
                 if (! $original || CarbonImmutable::parse($data['observed_at'])->lt($original->observed_at)) {
                     throw ValidationException::withMessages(['correction_of_id' => 'Tuzatish shu supplier/product tarixiga tegishli va observation vaqti oldingidan kam bo‘lmasin.']);
                 }
@@ -73,11 +79,11 @@ class RecordOffer
                 throw ValidationException::withMessages(['source_identifier' => 'Tashqi/import manba va task identifikatori talab qilinadi; bu live integratsiya emas.']);
             }
             $offer = Offer::firstOrCreate(
-                ['organization_id' => $organization->id, 'fingerprint' => $fingerprint],
+                ['organization_id' => $product->organization_id, 'fingerprint' => $fingerprint],
                 [...$data, 'import_batch_id' => $import?->id, 'provenance' => $provenance, 'recorded_at' => now()->utc()->format('Y-m-d H:i:s.u')],
             );
             if ($offer->wasRecentlyCreated) {
-                AuditLog::create(['organization_id' => $organization->id, 'user_id' => $user->id,
+                AuditLog::create(['organization_id' => $product->organization_id, 'user_id' => $user->id,
                     'action' => 'offer.recorded', 'subject_type' => 'offer', 'subject_id' => $offer->id]);
             }
 

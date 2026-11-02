@@ -38,7 +38,7 @@ class ImportOffers
                     throw ValidationException::withMessages(['file' => 'Ko‘pi bilan 500 satr; har satrda barcha ustunlar bo‘lishi kerak.']);
                 }
                 $data = array_combine($headers, array_map(fn ($value) => $value === '' ? null : $value, $row));
-                $validator = Validator::make($data, MarketRequest::offerRules($organization->id));
+                $validator = Validator::make($data, MarketRequest::offerRules());
                 if ($validator->fails()) {
                     throw ValidationException::withMessages(['file' => 'Satr '.(count($rows) + 2).': '.$validator->errors()->first()]);
                 }

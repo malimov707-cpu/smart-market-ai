@@ -83,7 +83,7 @@ it('allows correcting invalid rows and mapping without changing the original ext
     $this->assertDatabaseHas('import_events', ['action' => 'row_corrected', 'actor_id' => $user->id]);
 });
 
-it('rejects ambiguous suppliers and cross tenant identities as traceable row errors', function () {
+it('rejects ambiguous suppliers and lets administrators inspect imports across partitions', function () {
     Storage::fake('catalog');
     Bus::fake([PrepareImport::class]);
     [$user,$org] = marketIdentity();
@@ -92,9 +92,8 @@ it('rejects ambiguous suppliers and cross tenant identities as traceable row err
     $batch = prepareManaged(app(ManageImports::class)->upload($user, $org, importCsv([['product_id', 'supplier_name', 'price', 'currency', 'unit', 'package_quantity', 'minimum_packages', 'observed_at', 'source_reference'], [$input['product_id'], 'TEST ambiguous', '1', 'UZS', 'kg', '1', '1', '2026-01-01', 'TEST source']]), ['type' => 'offers', 'timezone' => 'UTC']));
     expect($batch->error_count)->toBe(1);
     expect($batch->rows()->sole()->errors)->toHaveKey('supplier_id');
-    $foreign = Offer::factory()->create();
     $this->actingAs($user)->get('/import-center/'.$batch->id.'/errors')->assertOk();
     [$other,$otherOrg] = marketIdentity();
-    $this->actingAs($other)->withSession(['organization_id' => $otherOrg->id])->get('/import-center/'.$batch->id.'/file')->assertNotFound();
-    $this->get('/import-center/'.$batch->id)->assertNotFound();
+    $this->actingAs($other)->withSession(['organization_id' => $otherOrg->id])->get('/import-center/'.$batch->id.'/file')->assertOk();
+    $this->get('/import-center/'.$batch->id)->assertOk();
 });

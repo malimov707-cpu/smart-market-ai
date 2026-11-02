@@ -8,6 +8,7 @@ use App\Http\Requests\ImportRequest;
 use App\Http\Requests\MarketRequest;
 use App\Models\AuditLog;
 use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\CompareOffers;
@@ -30,7 +31,6 @@ class MarketController extends Controller
     public function index(Request $request, WorkspaceInsights $insights): Response
     {
         $organization = $request->attributes->get('organization');
-        $tenant = $organization->id;
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
             'product_id' => ['nullable', 'integer'],
             'quantity' => ['nullable', 'numeric', 'decimal:0,3', 'min:0.001', 'max:1000000000']]);
@@ -39,27 +39,27 @@ class MarketController extends Controller
         return Inertia::render('Workspace', [
             'section' => $section,
             'assistant' => $section === 'ai' ? app(OpenRouterAssistant::class)->availability() : null,
-            'conversation' => $section === 'ai' ? $request->session()->get('ai_chat.'.$tenant, []) : [],
+            'conversation' => $section === 'ai' ? $request->session()->get(OpenRouterAssistant::SESSION_KEY, []) : [],
             'insights' => $section === 'ai' ? $insights->summarize($organization, $request->user(), isset($filters['product_id']) ? (int) $filters['product_id'] : null, (string) ($filters['quantity'] ?? '1')) : null,
             'canManage' => $request->user()->can(in_array($section, ['products', 'suppliers']) ? 'catalog' : 'manage', $organization),
             'filters' => $filters,
             'stats' => [
-                'products' => Product::where('organization_id', $tenant)->whereNull('archived_at')->count(),
-                'suppliers' => Supplier::where('organization_id', $tenant)->count(),
-                'offers' => Offer::where('organization_id', $tenant)->count(),
-                'fresh' => Offer::where('organization_id', $tenant)->where('observed_at', '>=', now()->subDays(7))->where('observed_at', '<=', now())
+                'products' => Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at')->count(),
+                'suppliers' => Supplier::whereIn('organization_id', Organization::allIds())->count(),
+                'offers' => Offer::whereIn('organization_id', Organization::allIds())->count(),
+                'fresh' => Offer::whereIn('organization_id', Organization::allIds())->where('observed_at', '>=', now()->subDays(7))->where('observed_at', '<=', now())
                     ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->count(),
             ],
-            'products' => $section === 'products' ? Product::where('organization_id', $tenant)->whereNull('archived_at')
+            'products' => $section === 'products' ? Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at')
                 ->when($filters['q'] ?? null, fn ($query, $q) => $query->where(fn ($query) => $query->where('name', 'like', "%{$q}%")->orWhere('sku', 'like', "%{$q}%")))
                 ->orderBy('name')->paginate(20)->withQueryString() : null,
-            'suppliers' => $section === 'suppliers' ? Supplier::where('organization_id', $tenant)
+            'suppliers' => $section === 'suppliers' ? Supplier::whereIn('organization_id', Organization::allIds())
                 ->when($filters['q'] ?? null, fn ($query, $q) => $query->where('name', 'like', "%{$q}%"))
                 ->orderBy('name')->paginate(20)->withQueryString() : null,
-            'offers' => in_array($section, ['dashboard', 'offers']) ? Offer::where('organization_id', $tenant)->with(['product', 'supplier'])
+            'offers' => in_array($section, ['dashboard', 'offers']) ? Offer::whereIn('organization_id', Organization::allIds())->with(['product', 'supplier'])
                 ->orderByDesc('observed_at')->paginate(20)->withQueryString() : null,
             'productOptions' => [], 'supplierOptions' => [],
-            'activity' => $section === 'dashboard' ? AuditLog::where('organization_id', $tenant)->latest('id')->limit(6)->get() : [],
+            'activity' => $section === 'dashboard' ? AuditLog::whereIn('organization_id', Organization::allIds())->latest('id')->limit(6)->get() : [],
         ]);
     }
 
@@ -89,12 +89,11 @@ class MarketController extends Controller
 
     public function archiveProduct(Request $request, int $product): RedirectResponse
     {
-        $organization = $request->attributes->get('organization');
-        $record = Product::where('organization_id', $organization->id)->findOrFail($product);
-        Gate::authorize('catalog', $organization);
-        DB::transaction(function () use ($record, $request, $organization): void {
+        $record = Product::whereIn('organization_id', Organization::allIds())->findOrFail($product);
+        Gate::authorize('catalog', $record);
+        DB::transaction(function () use ($record, $request): void {
             $record->update(['archived_at' => now()]);
-            AuditLog::create(['organization_id' => $organization->id, 'user_id' => $request->user()->id,
+            AuditLog::create(['organization_id' => $record->organization_id, 'user_id' => $request->user()->id,
                 'action' => 'product.archived', 'subject_type' => 'products', 'subject_id' => $record->id]);
         });
 
@@ -111,7 +110,7 @@ class MarketController extends Controller
     public function compare(Request $request, CompareOffers $engine): Response
     {
         $data = $request->validate(['product_id' => ['required', 'integer'], 'quantity' => ['required', 'numeric', 'decimal:0,3', 'min:0.001', 'max:1000000000'], 'as_of' => ['nullable', 'date', 'before_or_equal:now']]);
-        $product = Product::where('organization_id', $request->attributes->get('organization')->id)->whereNull('archived_at')->findOrFail($data['product_id']);
+        $product = Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at')->findOrFail($data['product_id']);
         $asOf = isset($data['as_of']) ? CarbonImmutable::parse($data['as_of'])->utc() : CarbonImmutable::now();
 
         return Inertia::render('Comparison', ['product' => $product, 'quantity' => (string) $data['quantity'],

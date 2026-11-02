@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\AppNotification;
 use App\Services\AccountMail;
 use App\Services\AssistantFailure;
 use App\Services\OpenRouterAssistant;
+use App\Services\PriceTrendHistory;
 use App\Services\ProductVision;
 use App\Services\PublicMarketCatalog;
 use Illuminate\Http\JsonResponse;
@@ -17,15 +19,26 @@ use Inertia\Response;
 
 class PublicMarketController extends Controller
 {
-    public function index(Request $request, PublicMarketCatalog $catalog, OpenRouterAssistant $assistant): Response
+    public function index(Request $request, PublicMarketCatalog $catalog, OpenRouterAssistant $assistant, PriceTrendHistory $trends): Response
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
-            'department' => ['nullable', Rule::in(['all', 'grocery', 'construction'])],
-            'source' => ['nullable', Rule::in(['all', 'korzinka', 'tezqur', 'kslux', 'alstroy'])]]);
+            'department' => ['nullable', Rule::in(['all', 'grocery', 'construction', 'general'])],
+            'source' => ['nullable', Rule::in(['all', 'korzinka', 'tezqur', 'kslux', 'alstroy', 'asaxiy', 'statuz'])]]);
+        $query = $filters['q'] ?? '';
+        $deal = $query === '' ? null : $trends->deal($query);
+        $user = $request->user();
+        $verified = $user->hasVerifiedEmail();
+        $canUseVerifiedFeatures = $verified || $user->is_platform_admin;
 
         return Inertia::render('PublicMarket', [
-            'verification' => ['verified' => $request->user()->hasVerifiedEmail(), 'mailAvailable' => AccountMail::available()], 'filters' => ['q' => $filters['q'] ?? '', 'department' => $filters['department'] ?? 'all', 'source' => $filters['source'] ?? 'all'],
-            'market' => $catalog->search($filters['q'] ?? '', [], $filters['department'] ?? 'all', $filters['source'] ?? 'all'), 'assistant' => $assistant->availability()]);
+            'verification' => ['verified' => $verified, 'required' => ! $user->is_platform_admin, 'canUse' => $canUseVerifiedFeatures,
+                'mailAvailable' => AccountMail::available()], 'filters' => ['q' => $query, 'department' => $filters['department'] ?? 'all', 'source' => $filters['source'] ?? 'all'],
+            'deal' => $deal,
+            'trend' => $query === '' ? null : ['series' => $trends->series($query), 'change' => $trends->change($query)],
+            'watch' => $query === '' ? null : ['watching' => AppNotification::where('user_id', $user->id)
+                ->where('event_type', 'market_watch_subscribed')->where('metadata->query', $query)->exists(), 'threshold' => '5'],
+            'market' => $catalog->search($query, [], $filters['department'] ?? 'all', $filters['source'] ?? 'all', true),
+            'assistant' => $assistant->availability()]);
     }
 
     public function scan(Request $request, ProductVision $vision, PublicMarketCatalog $catalog): JsonResponse
@@ -37,6 +50,12 @@ class PublicMarketController extends Controller
             return response()->json(['message' => $error->getMessage()], $error->status);
         }
 
-        return response()->json(['recognition' => $recognition, 'market' => $catalog->search($recognition['name'], $recognition['search_terms'])]);
+        $market = $catalog->search($recognition['name'], $recognition['search_terms'], includeOnDemand: true);
+
+        $insight = $market['sync_failed'] || $market['partial']
+            ? null
+            : $catalog->insight($recognition['name'], $market['products']);
+
+        return response()->json(['recognition' => $recognition, 'insight' => $insight, 'market' => $market]);
     }
 }

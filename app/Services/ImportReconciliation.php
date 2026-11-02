@@ -190,7 +190,7 @@ class ImportReconciliation
                 }
             }
         }
-        $rules = MarketRequest::offerRules($batch->organization_id);
+        $rules = MarketRequest::offerRules();
         $rules['product_id'] = ['required', 'integer'];
         $rules['supplier_id'] = ['required', 'integer'];
         $data = Validator::make($data, $rules)->validate();

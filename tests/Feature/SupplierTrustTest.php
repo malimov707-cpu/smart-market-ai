@@ -27,7 +27,7 @@ it('requires independent documented organization approval and preserves evidence
     $file = supplierEvidence($manager, $supplier);
     $this->post('/suppliers/'.$supplier->id.'/verification', ['scope' => 'organization', 'action' => 'submit', 'reason' => 'Documents supplied for actual review', 'evidence_ids' => [(string) $file->id]])->assertSessionHasNoErrors();
     expect($supplier->fresh()->verification_status)->toBe('pending');
-    $this->post('/suppliers/'.$supplier->id.'/verification', ['scope' => 'organization', 'action' => 'approve', 'reason' => 'Checked actual registration evidence'])->assertForbidden();
+    $this->post('/suppliers/'.$supplier->id.'/verification', ['scope' => 'organization', 'action' => 'approve', 'reason' => 'Checked actual registration evidence'])->assertSessionHasErrors('action');
     $this->actingAs($owner)->post('/suppliers/'.$supplier->id.'/verification', ['scope' => 'organization', 'action' => 'approve', 'reason' => 'Checked actual registration evidence'])->assertSessionHasNoErrors();
     expect($supplier->fresh()->verification_status)->toBe('verified');
     expect($supplier->fresh()->platform_verification_status)->toBe('unverified');
@@ -66,7 +66,7 @@ it('refuses missing or foreign verification evidence and tenant ids', function (
     $supplier = Supplier::factory()->create(['organization_id' => $org->id]);
     $foreign = Supplier::factory()->create();
     $this->actingAs($owner)->post('/suppliers/'.$supplier->id.'/verification', ['scope' => 'organization', 'action' => 'submit', 'reason' => 'Missing evidence should fail', 'evidence_ids' => [99999]])->assertSessionHasErrors('evidence_ids');
-    $this->post('/suppliers/'.$foreign->id.'/verification', ['scope' => 'organization', 'action' => 'submit', 'reason' => 'Cross tenant attempt'])->assertNotFound();
+    $this->post('/suppliers/'.$foreign->id.'/verification', ['scope' => 'organization', 'action' => 'submit', 'reason' => 'Cross tenant attempt'])->assertSessionHasErrors('evidence_ids');
 });
 it('requires real offer evidence for review and prevents duplicate feedback', function () {
     [$buyer,$org] = marketIdentity('buyer');

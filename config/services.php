@@ -21,6 +21,21 @@ return [
         'max_tokens' => (int) env('OPENROUTER_MAX_TOKENS', 512),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'username' => env('TELEGRAM_BOT_USERNAME', 'SmartMarketAiBot'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+    ],
+
+    'asaxiy' => [
+        'catalog_enabled' => env('ASAXIY_CATALOG_ENABLED', false),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

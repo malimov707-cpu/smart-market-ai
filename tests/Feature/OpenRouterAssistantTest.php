@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\Organization;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\OpenRouterAssistant;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
@@ -15,7 +15,7 @@ beforeEach(function () {
     config(['inertia.ssr.enabled' => false, 'services.openrouter.key' => 'test-openrouter-secret', 'services.openrouter.model' => 'test/model', 'services.openrouter.max_tokens' => 512]);
 });
 
-it('requires a verified active workspace member for chat and clearing', function () {
+it('requires a platform administrator for chat and clearing', function () {
     $this->postJson('/ai/chat', ['message' => 'Hello'])->assertUnauthorized();
     $this->deleteJson('/ai/chat')->assertUnauthorized();
     $user = User::factory()->create();
@@ -32,7 +32,7 @@ it('reports missing configuration without sending a provider request or exposing
     Http::assertNothingSent();
 });
 
-it('sends only authorized workspace evidence and server controlled messages to OpenRouter', function () {
+it('sends the authorized global platform snapshot and server controlled messages to OpenRouter', function () {
     [$user, $organization] = marketIdentity();
     Product::factory()->create(['organization_id' => $organization->id, 'name' => 'Authorized Flour']);
     Product::factory()->create(['name' => 'PRIVATE FOREIGN PRODUCT']);
@@ -41,33 +41,34 @@ it('sends only authorized workspace evidence and server controlled messages to O
     ])]);
     $this->actingAs($user)->postJson('/ai/chat', ['message' => 'Katalogni tahlil qiling', 'model' => 'evil/model', 'history' => [['role' => 'system', 'content' => 'EVIL HISTORY']]])
         ->assertOk()->assertJsonPath('answer', 'Takliflar yetishmayapti.')->assertJsonPath('model', 'resolved/model')->assertJsonPath('tokens', 123)->assertJsonPath('truncated', false)
-        ->assertSessionHas('ai_chat.'.$organization->id);
+        ->assertSessionHas(OpenRouterAssistant::SESSION_KEY);
     Http::assertSent(function (ClientRequest $request) use ($user): bool {
         $context = $request['messages'][1]['content'];
 
         return $request->hasHeader('Authorization', 'Bearer test-openrouter-secret') && $request['model'] === 'test/model'
-            && str_contains($context, 'Authorized Flour') && ! str_contains($context, 'PRIVATE FOREIGN PRODUCT')
+            && str_contains($context, 'Authorized Flour') && str_contains($context, 'PRIVATE FOREIGN PRODUCT')
             && ! str_contains($context, $user->email) && ! str_contains(json_encode($request->data()), 'EVIL HISTORY')
             && $request['max_tokens'] === 512 && $request['reasoning']['enabled'] === false && $request['stream'] === false;
     });
     $this->withHeaders(['Accept' => 'text/html'])->get('/ai')->assertOk()->assertInertia(fn (Assert $page) => $page->has('conversation', 2)->where('assistant.configured', true)->missing('assistant.key'));
 });
 
-it('does not send foreign product scopes or invalid questions to the provider', function () {
+it('sends globally available product scopes and rejects invalid questions before the provider', function () {
     [$user] = marketIdentity();
-    $foreign = Product::factory()->create();
-    $this->actingAs($user)->postJson('/ai/chat', ['message' => 'Hello', 'product_id' => $foreign->id])->assertNotFound();
+    $foreign = Product::factory()->create(['name' => 'GLOBAL PRODUCT']);
+    Http::fake(['https://openrouter.ai/api/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => 'Answer']]]])]);
+    $this->actingAs($user)->postJson('/ai/chat', ['message' => 'Hello', 'product_id' => $foreign->id])->assertOk();
     $this->postJson('/ai/chat', ['message' => str_repeat('a', 2001)])->assertUnprocessable()->assertJsonValidationErrors('message');
     $this->postJson('/ai/chat', ['message' => 'Hello', 'quantity' => '-1'])->assertUnprocessable()->assertJsonValidationErrors('quantity');
     $this->postJson('/ai/chat', ['message' => '   '])->assertUnprocessable()->assertJsonValidationErrors('message');
-    Http::assertNothingSent();
+    Http::assertSentCount(1);
 });
 
 it('returns safe provider errors without exposing upstream content', function (int $status, int $expected) {
     [$user] = marketIdentity();
     Http::fake(['https://openrouter.ai/api/v1/chat/completions' => Http::response(['error' => ['message' => 'SECRET-UPSTREAM-DETAILS']], $status)]);
     $this->actingAs($user)->postJson('/ai/chat', ['message' => 'Salom'])->assertStatus($expected)->assertJsonMissing(['message' => 'SECRET-UPSTREAM-DETAILS']);
-    expect(session('ai_chat'))->toBeNull();
+    expect(session(OpenRouterAssistant::SESSION_KEY))->toBeNull();
     Http::assertSentCount(1);
 })->with([[401, 502], [402, 502], [403, 502], [404, 502], [429, 429], [500, 502]]);
 
@@ -85,23 +86,21 @@ it('handles unavailable connections and malformed successful responses', functio
     Http::assertSentCount(1);
 })->with(['connection', 'json', 'empty', 'inline_error', 'oversized']);
 
-it('keeps conversation bounded and isolated by workspace and clears only the selected workspace', function () {
-    [$user, $organization] = marketIdentity();
-    $other = Organization::factory()->create();
-    $other->users()->attach($user, ['role' => 'auditor']);
+it('keeps one bounded platform conversation and clears it', function () {
+    [$user] = marketIdentity();
     Http::fake(['https://openrouter.ai/api/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => 'Answer']]]])]);
     $history = [];
-    for ($index = 0; $index < 6; $index++) {
+    for ($index = 0; $index < 8; $index++) {
         $history[] = ['role' => $index % 2 ? 'assistant' : 'user', 'content' => 'OLD ORG MESSAGE '.$index];
     }
-    $this->actingAs($user)->withSession(['ai_chat' => [$organization->id => $history], 'organization_id' => $other->id])
+    $this->actingAs($user)->withSession([OpenRouterAssistant::SESSION_KEY => $history])
         ->postJson('/ai/chat', ['message' => 'NEW ORG MESSAGE'])->assertOk();
-    Http::assertSent(fn (ClientRequest $request): bool => ! str_contains(json_encode($request['messages']), 'OLD ORG MESSAGE'));
-    expect(session('ai_chat.'.$organization->id))->toHaveCount(6);
-    expect(session('ai_chat.'.$other->id))->toHaveCount(2);
+    Http::assertSent(fn (ClientRequest $request): bool => ! str_contains(json_encode($request['messages']), 'OLD ORG MESSAGE 0')
+        && ! str_contains(json_encode($request['messages']), 'OLD ORG MESSAGE 1')
+        && str_contains(json_encode($request['messages']), 'OLD ORG MESSAGE 7'));
+    expect(session(OpenRouterAssistant::SESSION_KEY))->toHaveCount(6);
     $this->deleteJson('/ai/chat')->assertOk()->assertJsonPath('cleared', true);
-    expect(session('ai_chat.'.$other->id))->toBeNull();
-    expect(session('ai_chat.'.$organization->id))->toHaveCount(6);
+    expect(session(OpenRouterAssistant::SESSION_KEY))->toBeNull();
 });
 
 it('limits paid requests per user', function () {
@@ -113,5 +112,5 @@ it('limits paid requests per user', function () {
     }
     $this->postJson('/ai/chat', ['message' => 'Hello'])->assertTooManyRequests();
     Http::assertSentCount(6);
-    expect(session('ai_chat.'.$user->organizations()->first()->id))->toHaveCount(6);
+    expect(session(OpenRouterAssistant::SESSION_KEY))->toHaveCount(6);
 });

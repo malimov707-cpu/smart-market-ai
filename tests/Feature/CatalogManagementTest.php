@@ -42,15 +42,15 @@ it('creates a variant with a separate SKU and protects parent consistency', func
     expect($variant->variant_attributes[0]['value'])->toBe('A');
     $this->post('/products', catalogInput(['sku' => 'BAD', 'barcode' => null, 'parent_product_id' => $variant->id, 'variant_attributes' => [['name' => 'x', 'value' => 'y']]]))->assertSessionHasErrors('parent_product_id');
 });
-it('denies cross tenant product and supplier CRUD by direct URL', function () {
+it('allows platform administrators to manage products and suppliers across legacy partitions', function () {
     [$user] = marketIdentity();
     $product = Product::factory()->create();
     $supplier = Supplier::factory()->create();
-    $this->actingAs($user)->get('/products/'.$product->id)->assertNotFound();
-    $this->post('/products/'.$product->id, catalogInput())->assertNotFound();
-    $this->post('/products/'.$product->id.'/restore')->assertNotFound();
-    $this->get('/suppliers/'.$supplier->id)->assertNotFound();
-    $this->post('/suppliers/'.$supplier->id.'/archive')->assertNotFound();
+    $this->actingAs($user)->get('/products/'.$product->id)->assertOk();
+    $this->post('/products/'.$product->id, catalogInput(['sku' => $product->sku]))->assertSessionHasNoErrors();
+    $this->post('/products/'.$product->id.'/restore')->assertSessionHasNoErrors();
+    $this->get('/suppliers/'.$supplier->id)->assertOk();
+    $this->post('/suppliers/'.$supplier->id.'/archive')->assertSessionHasNoErrors();
 });
 it('edits archives and restores suppliers without losing offers', function () {
     [$user,$org] = marketIdentity();
@@ -63,8 +63,8 @@ it('edits archives and restores suppliers without losing offers', function () {
     $this->post('/suppliers/'.$offer->supplier_id.'/restore')->assertSessionHasNoErrors();
     expect($offer->supplier->fresh()->archived_at)->toBeNull();
 });
-it('denies catalog mutations to read-only and buyer roles', function (string $role) {
-    [$user,$org] = marketIdentity($role);
+it('allows catalog mutations only to platform administrators regardless of legacy membership', function (string $role) {
+    [$user,$org] = marketIdentity($role, isPlatformAdmin: false);
     $product = Product::factory()->create(['organization_id' => $org->id]);
     $this->actingAs($user)->post('/products/'.$product->id, catalogInput())->assertForbidden();
     $this->post('/products/'.$product->id.'/restore')->assertForbidden();
@@ -78,14 +78,14 @@ it('paginates remote catalog beyond five hundred records and rejects unsafe orde
     $this->get('/products?sort=name%20desc%3Bdrop')->assertSessionHasErrors('sort');
 });
 
-it('filters archived suppliers and paginates search in the selected tenant', function () {
+it('filters archived suppliers and paginates search across legacy partitions', function () {
     [$user,$org] = marketIdentity();
     Supplier::factory()->count(22)->create(['organization_id' => $org->id]);
     $archived = Supplier::factory()->create(['organization_id' => $org->id, 'name' => 'ARCHIVED-NEEDLE', 'archived_at' => now()]);
     Supplier::factory()->create(['name' => 'FOREIGN-NEEDLE']);
-    $this->actingAs($user)->get('/suppliers')->assertInertia(fn (Assert $page) => $page->has('suppliers.data', 20)->where('suppliers.total', 22));
+    $this->actingAs($user)->get('/suppliers')->assertInertia(fn (Assert $page) => $page->has('suppliers.data', 20)->where('suppliers.total', 23));
     $this->get('/suppliers?status=archived&q=NEEDLE')->assertInertia(fn (Assert $page) => $page->has('suppliers.data', 1)->where('suppliers.data.0.id', $archived->id));
-    $this->get('/catalog/suppliers/lookup?q=NEEDLE')->assertJsonPath('total', 0);
+    $this->get('/catalog/suppliers/lookup?q=NEEDLE')->assertJsonPath('total', 1);
 });
 
 it('preserves unit identity after offers exist and rejects new offers from archived suppliers', function () {

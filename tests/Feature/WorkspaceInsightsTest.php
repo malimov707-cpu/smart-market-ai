@@ -30,19 +30,23 @@ it('compares actual complete eligible prices for the requested purchase quantity
         ->where('insights.decisions.0.alternatives', 2));
 });
 
-it('never recommends expired incomplete or foreign offers', function () {
+it('includes legacy partitions while excluding expired or incomplete offers from recommendations', function () {
     $this->freezeTime();
     [$user, $organization] = marketIdentity();
-    $product = Product::factory()->create(['organization_id' => $organization->id, 'unit' => 'kg']);
+    $product = Product::factory()->create(['organization_id' => $organization->id, 'name' => 'TEST A incomplete', 'unit' => 'kg']);
     $supplier = Supplier::factory()->create(['organization_id' => $organization->id]);
     Offer::factory()->create(['organization_id' => $organization->id, 'product_id' => $product->id, 'supplier_id' => $supplier->id,
         'delivery_fee' => null, 'observed_at' => now()->subDay(), 'created_at' => now()->subDay(), 'expires_at' => now()->subHour()]);
-    Offer::factory()->create();
+    $foreign = Product::factory()->create(['name' => 'TEST B global complete']);
+    $foreignSupplier = Supplier::factory()->create(['organization_id' => $foreign->organization_id]);
+    Offer::factory()->create(['organization_id' => $foreign->organization_id, 'product_id' => $foreign->id, 'supplier_id' => $foreignSupplier->id]);
     $this->actingAs($user)->get('/ai')->assertInertia(fn (Assert $page) => $page
-        ->where('insights.product_count', 1)->where('insights.observation_count', 1)->where('insights.missing_delivery', 1)
-        ->where('insights.decisions.0.status', 'incomplete')->where('insights.decisions.0.total', null));
-    $foreign = Product::factory()->create();
-    $this->get('/ai?product_id='.$foreign->id)->assertNotFound();
+        ->where('insights.product_count', 2)->where('insights.observation_count', 2)->where('insights.missing_delivery', 1)
+        ->where('insights.decisions.0.id', $product->id)->where('insights.decisions.0.status', 'incomplete')
+        ->where('insights.decisions.0.total', null)->where('insights.decisions.1.id', $foreign->id)
+        ->where('insights.decisions.1.status', 'ready'));
+    $this->get('/ai?product_id='.$foreign->id)->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('insights.decisions.0.id', $foreign->id));
 });
 
 it('rejects invalid purchase quantities instead of producing a recommendation', function () {

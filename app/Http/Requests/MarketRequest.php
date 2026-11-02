@@ -31,16 +31,16 @@ class MarketRequest extends FormRequest
                 'contact' => ['nullable', 'string', 'max:180'],
                 'city' => ['required', 'string', 'max:100'],
             ],
-            'offers.store' => self::offerRules($tenant),
+            'offers.store' => self::offerRules(),
             default => [],
         };
     }
 
-    public static function offerRules(int $tenant): array
+    public static function offerRules(): array
     {
         return [
-            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('organization_id', $tenant)->whereNull('archived_at')],
-            'supplier_id' => ['required', 'integer', Rule::exists('suppliers', 'id')->where('organization_id', $tenant)->whereNull('archived_at')],
+            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('archived_at')],
+            'supplier_id' => ['required', 'integer', Rule::exists('suppliers', 'id')->whereNull('archived_at')],
             'price' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'regex:/^\d{1,16}(?:\.\d{1,2})?$/'],
             'currency' => ['required', Rule::in(ExchangeRates::CURRENCIES)],
             'unit' => ['required', Rule::in(['kg', 'g', 'l', 'ml', 'pcs'])],

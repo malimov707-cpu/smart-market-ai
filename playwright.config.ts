@@ -4,8 +4,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 const database = process.env.SMART_MARKET_BROWSER_DB ??= join(mkdtempSync(join(tmpdir(), 'smart-market-browser-')), 'testing.sqlite');
+const browserPort = Number.parseInt(process.env.SMART_MARKET_BROWSER_PORT ?? '8138', 10);
+if (!Number.isInteger(browserPort) || browserPort < 1 || browserPort > 65535) {
+    throw new Error('SMART_MARKET_BROWSER_PORT must be a valid TCP port.');
+}
+
 export const browserEnvironment = {
-    APP_ENV: 'testing', APP_DEBUG: 'false', APP_URL: 'http://127.0.0.1:8137',
+    APP_ENV: 'testing', APP_DEBUG: 'false', APP_URL: `http://127.0.0.1:${browserPort}`,
     APP_KEY: `base64:${Buffer.alloc(32, 7).toString('base64')}`,
     DB_CONNECTION: 'sqlite', DB_DATABASE: database, DB_URL: '',
     SESSION_DRIVER: 'database', SESSION_SECURE_COOKIE: 'false', SESSION_ENCRYPT: 'true',
@@ -23,5 +28,5 @@ export default defineConfig({
         { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
         { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
     ],
-    webServer: { command: 'php artisan serve --host=127.0.0.1 --port=8137 --no-reload', url: 'http://127.0.0.1:8137/up', reuseExistingServer: false, env: browserEnvironment },
+    webServer: { command: `php artisan serve --host=127.0.0.1 --port=${browserPort} --no-reload`, url: `${browserEnvironment.APP_URL}/up`, reuseExistingServer: false, env: browserEnvironment },
 });

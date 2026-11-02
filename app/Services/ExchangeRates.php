@@ -47,8 +47,9 @@ class ExchangeRates
     public function approve(User $actor, Organization $organization, int $id): void
     {
         Gate::forUser($actor)->authorize('administer', $organization);
-        DB::transaction(function () use ($actor, $organization, $id): void {
-            $rate = ExchangeRate::where('organization_id', $organization->id)->lockForUpdate()->findOrFail($id);
+        DB::transaction(function () use ($actor, $id): void {
+            $rate = ExchangeRate::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($id);
+            Gate::forUser($actor)->authorize('administer', Organization::findOrFail($rate->organization_id));
             if ($rate->submitted_by === $actor->id || $rate->approved_at !== null || $rate->expires_at->lte(now())) {
                 throw ValidationException::withMessages(['rate' => 'Faol kursni boshqa Owner bir marta tasdiqlashi kerak.']);
             }

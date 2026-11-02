@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\AnalyticsPrices;
@@ -29,19 +30,18 @@ class AnalyticsController extends Controller
     public function dashboard(Request $request): Response
     {
         $organization = $request->attributes->get('organization');
-        $tenant = $organization->id;
         Gate::authorize('view', $organization);
         $filters = $this->filters($request);
         $asOf = isset($filters['to']) ? CarbonImmutable::parse($filters['to'])->utc() : CarbonImmutable::now()->utc();
         $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from'])->utc() : $asOf->subDays(30);
 
-        $products = Product::where('organization_id', $tenant)->whereNull('archived_at');
-        $suppliers = Supplier::where('organization_id', $tenant);
-        $offerBase = Offer::where('organization_id', $tenant)->where('observed_at', '<=', $asOf)->whereRaw(str_replace(['recorded_at', 'created_at'], ['offers.recorded_at', 'offers.created_at'], LatestOffers::recordedExpression()).' <= ?', [$asOf->format('Y-m-d H:i:s.u')]);
+        $products = Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at');
+        $suppliers = Supplier::whereIn('organization_id', Organization::allIds());
+        $offerBase = Offer::whereIn('organization_id', Organization::allIds())->where('observed_at', '<=', $asOf)->whereRaw(str_replace(['recorded_at', 'created_at'], ['offers.recorded_at', 'offers.created_at'], LatestOffers::recordedExpression()).' <= ?', [$asOf->format('Y-m-d H:i:s.u')]);
 
         $freshOffers = (clone $offerBase)->where('observed_at', '>=', $asOf->subDays(7))
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', $asOf))->count();
-        $pendingStates = DB::table('price_reviews')->where('organization_id', $tenant)->where('created_at', '<=', $asOf->format('Y-m-d H:i:s.u'))
+        $pendingStates = DB::table('price_reviews')->whereIn('organization_id', Organization::allIds())->where('created_at', '<=', $asOf->format('Y-m-d H:i:s.u'))
             ->select('status')->selectRaw('ROW_NUMBER() OVER (PARTITION BY offer_id, scope ORDER BY created_at DESC, id DESC) AS rank');
         $pendingVerification = DB::query()->fromSub($pendingStates, 'states')->where('rank', 1)->where('status', 'pending')->count();
 
@@ -53,12 +53,12 @@ class AnalyticsController extends Controller
                 'fresh_offers' => $freshOffers,
                 'pending_verification' => $pendingVerification,
             ],
-            'imports' => ManageImports::recentFor($tenant, 5),
+            'imports' => ManageImports::recentFor(5),
             'filters' => $filters, 'asOf' => $asOf->toISOString(),
-            'priceMovement' => Product::where('organization_id', $tenant)->whereNull('archived_at')
+            'priceMovement' => Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at')
                 ->when($filters['product_id'] ?? null, fn ($query, $id) => $query->whereKey($id))->orderBy('id')->paginate(10)->withQueryString()
                 ->through(fn (Product $product): array => app(AnalyticsPrices::class)->product($product, $request->user(), $asOf, $from, isset($filters['supplier_id']) ? (int) $filters['supplier_id'] : null)),
-            'supplierActivity' => $this->supplierActivity($tenant, $asOf),
+            'supplierActivity' => $this->supplierActivity($asOf),
         ]);
     }
 
@@ -67,19 +67,18 @@ class AnalyticsController extends Controller
         $data = $request->validate(['from' => ['nullable', 'date', 'before_or_equal:now'], 'to' => ['nullable', 'date', 'before_or_equal:now', 'after_or_equal:from'],
             'product_id' => ['nullable', 'integer'], 'supplier_id' => ['nullable', 'integer'], 'currency' => ['nullable', 'in:UZS,USD,EUR,RUB'],
             'verification' => ['nullable', 'in:unverified,pending,verified,rejected,disputed']]);
-        $tenant = $request->attributes->get('organization')->id;
         foreach (['product_id' => Product::class, 'supplier_id' => Supplier::class] as $key => $model) {
             if (isset($data[$key])) {
-                $model::where('organization_id', $tenant)->findOrFail($data[$key]);
+                $model::whereIn('organization_id', Organization::allIds())->findOrFail($data[$key]);
             }
         }
 
         return $data;
     }
 
-    private function supplierActivity(int $tenant, CarbonImmutable $asOf): array
+    private function supplierActivity(CarbonImmutable $asOf): array
     {
-        return Offer::where('offers.organization_id', $tenant)
+        return Offer::whereIn('offers.organization_id', Organization::allIds())
             ->join('suppliers', 'suppliers.id', '=', 'offers.supplier_id')
             ->where('offers.observed_at', '<=', $asOf)->whereRaw(str_replace(['recorded_at', 'created_at'], ['offers.recorded_at', 'offers.created_at'], LatestOffers::recordedExpression()).' <= ?', [$asOf->format('Y-m-d H:i:s.u')])
             ->selectRaw('suppliers.id, suppliers.name, suppliers.verification_status, count(*) as offers_count, max(offers.observed_at) as last_observed_at')
@@ -93,15 +92,14 @@ class AnalyticsController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $organization = $request->attributes->get('organization');
-        $tenant = $organization->id;
         Gate::authorize('view', $organization);
         $filters = $this->filters($request);
         $asOf = isset($filters['to']) ? CarbonImmutable::parse($filters['to'])->utc() : CarbonImmutable::now()->utc();
 
-        return response()->streamDownload(function () use ($tenant, $filters, $asOf): void {
+        return response()->streamDownload(function () use ($filters, $asOf): void {
             $out = fopen('php://output', 'w+b');
             fputcsv($out, ['Mahsulot', 'SKU', 'Yetkazib beruvchi', 'Narx', 'Valyuta', 'Birlik', 'Qadoq', 'Kuzatilgan', 'Manba', 'Tekshiruv (org)', 'Tekshiruv (platforma)']);
-            Offer::where('offers.organization_id', $tenant)
+            Offer::whereIn('offers.organization_id', Organization::allIds())
                 ->when($filters['product_id'] ?? null, fn ($q, $v) => $q->where('product_id', (int) $v))
                 ->when($filters['supplier_id'] ?? null, fn ($q, $v) => $q->where('supplier_id', (int) $v))
                 ->when($filters['currency'] ?? null, fn ($q, $v) => $q->where('currency', strtoupper((string) $v)))
@@ -110,8 +108,11 @@ class AnalyticsController extends Controller
                 ->join('products', 'products.id', '=', 'offers.product_id')->join('suppliers', 'suppliers.id', '=', 'offers.supplier_id')
                 ->where('offers.observed_at', '<=', $asOf)->whereRaw(str_replace(['recorded_at', 'created_at'], ['offers.recorded_at', 'offers.created_at'], LatestOffers::recordedExpression()).' <= ?', [$asOf->format('Y-m-d H:i:s.u')])->orderBy('offers.id')
                 ->select('offers.*', 'products.name as product_name', 'products.sku as product_sku', 'suppliers.name as supplier_name')
-                ->chunkById(500, function ($chunk) use ($out, $tenant, $asOf, $filters): void {
-                    $reviews = $this->verification->snapshots($tenant, $chunk->modelKeys(), $asOf);
+                ->chunkById(500, function ($chunk) use ($out, $asOf, $filters): void {
+                    $reviews = [];
+                    foreach ($chunk->groupBy('organization_id') as $tenant => $offers) {
+                        $reviews += $this->verification->snapshots((int) $tenant, $offers->modelKeys(), $asOf);
+                    }
                     foreach ($chunk as $offer) {
                         $snap = $reviews[$offer->id] ?? [];
                         if (isset($filters['verification']) && ($snap['organization']['status'] ?? 'unverified') !== $filters['verification']) {

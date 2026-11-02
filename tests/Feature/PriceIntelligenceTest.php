@@ -60,7 +60,7 @@ it('uses both observed and recorded cutoffs across timezone boundaries and appen
         ->assertInertia(fn (Assert $page) => $page->where('results.0.id', $original->id));
 });
 
-it('bounds large histories and keeps supplier comparisons tenant isolated', function () {
+it('bounds large histories while global administrators can inspect legacy partitions', function () {
     $this->freezeTime();
     [$user, $org] = marketIdentity();
     $input = offerInput($org);
@@ -83,9 +83,9 @@ it('bounds large histories and keeps supplier comparisons tenant isolated', func
     expect($results)->toHaveCount(2);
     expect(array_column($results, 'id'))->toContain($offer->id, $another->id);
     expect(count($queries))->toBeLessThanOrEqual(12);
-    [$stranger] = marketIdentity();
-    $this->actingAs($stranger)->get('/products/'.$offer->product_id.'/price-history')->assertNotFound();
-    $this->get('/prices/'.$offer->id)->assertNotFound();
+    [$consumer] = marketIdentity('owner', isPlatformAdmin: false);
+    $this->actingAs($consumer)->get('/products/'.$offer->product_id.'/price-history')->assertForbidden();
+    $this->get('/prices/'.$offer->id)->assertForbidden();
 });
 
 it('records supported source metadata without independently verifying a supplier price', function (string $source) {
@@ -133,7 +133,7 @@ it('requires independent price reviewer and preserves evidence historical verifi
     $this->assertDatabaseHas('audit_logs', ['action' => 'price.verified']);
 });
 
-it('denies missing evidence unauthorized roles and platform price self grants', function () {
+it('denies missing evidence unauthorized users and platform price self grants', function () {
     [$owner, $org] = marketIdentity();
     $offer = app(RecordOffer::class)->execute($owner, $org, offerInput($org));
     $data = ['scope' => 'organization', 'status' => 'pending', 'reason' => 'TEST evidence justification', 'evidence_file_id' => 999999];
@@ -141,11 +141,11 @@ it('denies missing evidence unauthorized roles and platform price self grants', 
     $file = priceEvidence($offer, $owner);
     $data['evidence_file_id'] = $file->id;
     $this->post('/prices/'.$offer->id.'/review', [...$data, 'scope' => 'platform'])->assertForbidden();
-    $auditor = User::factory()->create(['is_platform_admin' => true]);
+    $auditor = User::factory()->create(['is_platform_admin' => false]);
     $org->users()->attach($auditor, ['role' => 'auditor']);
     $this->actingAs($auditor)->post('/prices/'.$offer->id.'/review', $data)->assertForbidden();
     $this->post('/exchange-rates', [])->assertForbidden();
-    $this->get('/prices/'.$offer->id)->assertOk();
+    $this->get('/prices/'.$offer->id)->assertForbidden();
 });
 
 it('uses independently approved historical exchange rates with exact half up rounding and source attribution', function () {
@@ -173,7 +173,7 @@ it('uses independently approved historical exchange rates with exact half up rou
     expect($engine->compare($offer->product, '1', CarbonImmutable::now(), $owner)[0]['known_total'])->toBe('202.00');
 });
 
-it('excludes missing expired and foreign tenant exchange rates and validates bad currencies and decimals', function () {
+it('uses only same-partition exchange rates and validates bad currencies and decimals', function () {
     $this->freezeTime();
     [$owner, $org] = marketIdentity();
     $offer = app(RecordOffer::class)->execute($owner, $org, [...offerInput($org), 'currency' => 'EUR']);
@@ -181,8 +181,9 @@ it('excludes missing expired and foreign tenant exchange rates and validates bad
     expect($engine->compare($offer->product, '1', CarbonImmutable::now(), $owner)[0])->toMatchArray(['known_total' => null, 'eligible' => false, 'cheapest_complete' => false]);
     $this->actingAs($owner)->post('/exchange-rates', ['currency' => 'XXX', 'rate' => '-1'])->assertSessionHasErrors(['currency', 'rate']);
     $this->post('/offers', [...offerInput($org), 'currency' => 'XXX'])->assertSessionHasErrors('currency');
-    $other = ExchangeRate::create(['organization_id' => Organization::factory()->create()->id, 'currency' => 'EUR', 'rate' => '100', 'source' => 'TEST ONLY', 'source_reference' => 'TEST ONLY', 'effective_at' => now()->subHour(), 'expires_at' => now()->addHour(), 'submitted_by' => $owner->id]);
-    $this->post('/exchange-rates/'.$other->id.'/approve')->assertNotFound();
+    $other = ExchangeRate::create(['organization_id' => Organization::factory()->create()->id, 'currency' => 'EUR', 'rate' => '100', 'source' => 'TEST ONLY', 'source_reference' => 'TEST ONLY', 'effective_at' => now()->subHour(), 'expires_at' => now()->addHour(), 'submitted_by' => User::factory()->create(['is_platform_admin' => true])->id]);
+    $this->post('/exchange-rates/'.$other->id.'/approve')->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('exchange_rates', ['id' => $other->id, 'approved_by' => $owner->id]);
     expect($engine->compare($offer->product, '1', CarbonImmutable::now(), $owner)[0]['known_total'])->toBeNull();
 });
 
@@ -333,22 +334,31 @@ it('rounds normalized prices after multiplication and division without losing la
     expect($service->unitPrice('1.00', '6.000000', 'UZS', [], CarbonImmutable::now()))->toBe('0.166666666667');
 });
 
-it('enforces read and submission permissions across every organization role', function (string $role, bool $canSubmit) {
-    [$actor, $org] = marketIdentity($role);
+it('enforces price management access for platform administrators and consumers', function (bool $isPlatformAdmin) {
+    [$actor, $org] = marketIdentity('owner', $isPlatformAdmin);
     $offer = Offer::factory()->create(['organization_id' => $org->id]);
     $file = priceEvidence($offer, $actor);
-    $this->actingAs($actor)->get('/prices/'.$offer->id)->assertOk();
-    $this->get('/products/'.$offer->product_id.'/price-history')->assertOk();
-    $this->get('/exchange-rates')->assertOk();
+    $priceResponse = $this->actingAs($actor)->get('/prices/'.$offer->id);
+    $historyResponse = $this->get('/products/'.$offer->product_id.'/price-history');
+    $ratesResponse = $this->get('/exchange-rates');
+    if ($isPlatformAdmin) {
+        $priceResponse->assertOk();
+        $historyResponse->assertOk();
+        $ratesResponse->assertOk();
+    } else {
+        $priceResponse->assertForbidden();
+        $historyResponse->assertForbidden();
+        $ratesResponse->assertForbidden();
+    }
     $response = $this->post('/prices/'.$offer->id.'/review', ['scope' => 'organization', 'status' => 'pending', 'reason' => 'TEST ONLY documented price submission', 'evidence_file_id' => $file->id]);
-    if ($canSubmit) {
+    if ($isPlatformAdmin) {
         $response->assertSessionHasNoErrors()->assertRedirect();
         $this->assertDatabaseHas('price_reviews', ['offer_id' => $offer->id, 'actor_id' => $actor->id, 'status' => 'pending']);
     } else {
         $response->assertForbidden();
         $this->assertDatabaseCount('price_reviews', 0);
     }
-})->with([['owner', true], ['manager', true], ['buyer', true], ['analyst', false], ['auditor', false]]);
+})->with([true, false]);
 
 it('rejects cross tenant price evidence and history supplier references and missing correction reasons', function () {
     [$actor, $org] = marketIdentity();

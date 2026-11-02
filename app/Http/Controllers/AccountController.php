@@ -10,6 +10,7 @@ use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Services\AccountSecurity;
 use App\Services\ManageMemberships;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,7 +35,36 @@ class AccountController extends Controller
             ]) : [];
 
         return Inertia::render('Account', ['profile' => $request->user()->only('name', 'email', 'locale', 'email_verified_at'),
+            'telegramLogin' => $request->user()->telegram_login_id !== null,
+            'telegram' => ['linked' => (bool) $request->user()->telegram_chat_id, 'configured' => (bool) config('services.telegram.bot_token'),
+                'briefing' => $request->user()->telegram_briefing,
+                'link' => $request->user()->telegram_chat_id ? null : 'https://t.me/'.ltrim((string) config('services.telegram.username'), '@').'?start='.$this->ensureLinkToken($request->user())],
             'sessions' => $sessions, 'databaseSessions' => $databaseSessions]);
+    }
+
+    private function ensureLinkToken(User $user): string
+    {
+        $token = $user->telegram_link_token ?? str()->random(48);
+        if ($token !== $user->telegram_link_token) {
+            $user->forceFill(['telegram_link_token' => $token])->save();
+        }
+
+        return $token;
+    }
+
+    public function telegramToggle(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['briefing' => ['required', 'boolean']]);
+        $request->user()->forceFill(['telegram_briefing' => $data['briefing']])->save();
+
+        return back()->with('success', $data['briefing'] ? 'Telegram briefing yoqildi.' : 'Telegram briefing o‘chirildi.');
+    }
+
+    public function telegramUnlink(Request $request): RedirectResponse
+    {
+        $request->user()->forceFill(['telegram_chat_id' => null, 'telegram_link_token' => null])->save();
+
+        return back()->with('success', 'Telegram hisobdan uzildi.');
     }
 
     public function profile(AccountRequest $request, AccountSecurity $security): RedirectResponse
@@ -54,6 +84,13 @@ class AccountController extends Controller
         });
         $request->session()->put('security_version', $user->security_version);
         $request->session()->regenerate();
+        if ($changedEmail) {
+            try {
+                event(new Registered($user));
+            } catch (\Throwable) {
+                SecurityEvent::create(['user_id' => $user->id, 'action' => 'verification.mail_failed']);
+            }
+        }
 
         return back()->with('success', $changedEmail ? 'Email yangilandi. Yangi emailni tasdiqlang; boshqa sessiyalar bekor qilindi.' : 'Profil yangilandi.');
     }

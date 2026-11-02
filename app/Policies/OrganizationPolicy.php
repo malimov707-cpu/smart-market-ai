@@ -16,22 +16,27 @@ class OrganizationPolicy
 
     public function manage(User $user, Organization $organization): bool
     {
-        return $this->hasRole($user, $organization, ['owner', 'manager', 'buyer']);
+        return $this->isActiveAndVerified($user) && $user->is_platform_admin;
     }
 
     public function catalog(User $user, Organization $organization): bool
     {
-        return $this->hasRole($user, $organization, ['owner', 'manager']);
+        return $this->isActiveAndVerified($user) && $user->is_platform_admin;
     }
 
     public function administer(User $user, Organization $organization): bool
     {
-        return $this->hasRole($user, $organization, ['owner']);
+        return $this->isActiveAndVerified($user) && $user->is_platform_admin;
     }
 
     private function hasRole(User $user, Organization $organization, array $roles): bool
     {
-        return User::whereKey($user->id)->where('is_active', true)->whereNotNull('email_verified_at')->exists()
-            && $user->organizations()->where('organizations.id', $organization->id)->wherePivotIn('role', $roles)->exists();
+        return $this->isActiveAndVerified($user) && ($user->is_platform_admin
+            || $user->organizations()->where('organizations.id', $organization->id)->wherePivotIn('role', $roles)->exists());
+    }
+
+    private function isActiveAndVerified(User $user): bool
+    {
+        return User::whereKey($user->id)->where('is_active', true)->whereNotNull('email_verified_at')->exists();
     }
 }

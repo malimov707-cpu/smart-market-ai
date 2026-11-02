@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\CatalogFile;
 use App\Models\ExchangeRate;
 use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\PriceReview;
 use App\Models\Product;
 use App\Models\Supplier;
@@ -28,6 +29,7 @@ class PriceIntelligenceController extends Controller
     public function show(Request $request, int $offer, CompareOffers $comparison, ExchangeRates $exchange, PriceVerification $verification): Response
     {
         $record = $this->offer($request, $offer)->load(['product', 'supplier']);
+        $organization = Organization::findOrFail($record->organization_id);
         $asOf = CarbonImmutable::now();
         $reviews = $verification->snapshots($record->organization_id, [$record->id], $asOf);
 
@@ -35,7 +37,7 @@ class PriceIntelligenceController extends Controller
             'calculation' => $comparison->calculate($record, $record->product, '1', $asOf, $exchange->at($record->organization_id, $asOf), $reviews[$record->id] ?? []),
             'history' => PriceReview::where('organization_id', $record->organization_id)->where('offer_id', $record->id)->orderByDesc('id')->paginate(20)->withQueryString(),
             'evidence' => CatalogFile::where('organization_id', $record->organization_id)->where('supplier_id', $record->supplier_id)->whereNull('retired_at')->select(['id', 'name'])->get(),
-            'canManage' => $request->user()->can('manage', $request->attributes->get('organization'))]);
+            'canManage' => $request->user()->can('manage', $organization)]);
     }
 
     public function review(Request $request, int $offer, PriceVerification $verification): RedirectResponse
@@ -47,9 +49,9 @@ class PriceIntelligenceController extends Controller
 
     public function history(Request $request, int $product, PriceHistory $history, CompareOffers $comparison, ExchangeRates $exchange, PriceVerification $verification, SupplierAvailability $availability): Response
     {
-        $organization = $request->attributes->get('organization');
+        $product = Product::whereIn('organization_id', Organization::allIds())->findOrFail($product);
+        $organization = Organization::findOrFail($product->organization_id);
         Gate::authorize('view', $organization);
-        $product = Product::where('organization_id', $organization->id)->findOrFail($product);
         $data = $request->validate(['as_of' => ['nullable', 'date', 'before_or_equal:now'], 'from' => ['nullable', 'date'],
             'supplier_id' => ['nullable', 'integer'], 'page' => ['nullable', 'integer', 'min:1', 'max:100000']]);
         $asOf = isset($data['as_of']) ? CarbonImmutable::parse($data['as_of'])->utc() : CarbonImmutable::now();
@@ -57,7 +59,7 @@ class PriceIntelligenceController extends Controller
         abort_if($from->gt($asOf), 422, 'Davr boshi yakundan keyin bo‘lmasin.');
         $supplier = isset($data['supplier_id']) ? (int) $data['supplier_id'] : null;
         if ($supplier !== null) {
-            Supplier::where('organization_id', $organization->id)->findOrFail($supplier);
+            Supplier::where('organization_id', $product->organization_id)->findOrFail($supplier);
         }
         $lowerBound = $from->micro > 0 ? $from->addSecond()->startOfSecond() : $from;
         $quotes = Offer::where('organization_id', $organization->id)->where('product_id', $product->id)
@@ -79,7 +81,7 @@ class PriceIntelligenceController extends Controller
         $organization = $request->attributes->get('organization');
         Gate::authorize('view', $organization);
 
-        return Inertia::render('ExchangeRates', ['rates' => ExchangeRate::where('organization_id', $organization->id)->orderByDesc('id')->paginate(30)->withQueryString(),
+        return Inertia::render('ExchangeRates', ['rates' => ExchangeRate::whereIn('organization_id', Organization::allIds())->orderByDesc('id')->paginate(30)->withQueryString(),
             'canManage' => $request->user()->can('administer', $organization)]);
     }
 
@@ -101,6 +103,9 @@ class PriceIntelligenceController extends Controller
     {
         Gate::authorize('view', $request->attributes->get('organization'));
 
-        return Offer::where('organization_id', $request->attributes->get('organization')->id)->findOrFail($id);
+        $offer = Offer::whereIn('organization_id', Organization::allIds())->findOrFail($id);
+        Gate::authorize('view', Organization::findOrFail($offer->organization_id));
+
+        return $offer;
     }
 }

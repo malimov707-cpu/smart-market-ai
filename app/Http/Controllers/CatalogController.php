@@ -25,7 +25,6 @@ class CatalogController extends Controller
 {
     public function index(Request $request): Response
     {
-        $tenant = $request->attributes->get('organization')->id;
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', Rule::in(['active', 'archived', 'all'])],
             'category' => ['nullable', 'string', 'max:100'], 'unit' => ['nullable', Rule::in(['kg', 'l', 'pcs'])],
             'sort' => ['nullable', Rule::in(['name', 'sku', 'created_at'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])]]);
@@ -43,7 +42,7 @@ class CatalogController extends Controller
 
         return Inertia::render('Workspace', ['section' => 'products', 'products' => $items, 'catalog' => ['kind' => 'products', 'items' => $items,
             'filters' => $filters, 'canManage' => $request->user()->can('catalog', $request->attributes->get('organization')),
-            'categories' => Product::where('organization_id', $tenant)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category')]]);
+            'categories' => Product::whereIn('organization_id', Organization::allIds())->whereNotNull('category')->distinct()->orderBy('category')->pluck('category')]]);
     }
 
     public function lookup(Request $request): JsonResponse
@@ -55,7 +54,7 @@ class CatalogController extends Controller
 
     private function query(Request $request): Builder
     {
-        $query = Product::where('organization_id', $request->attributes->get('organization')->id);
+        $query = Product::whereIn('organization_id', Organization::allIds());
         if ($q = $request->input('q')) {
             $pattern = '%'.mb_strtolower($q).'%';
             $query->where(fn ($query) => $query->whereRaw('LOWER(name) LIKE ?', [$pattern])->orWhereRaw('LOWER(sku) LIKE ?', [$pattern])
@@ -67,7 +66,7 @@ class CatalogController extends Controller
 
     public function show(Request $request, int $product): Response
     {
-        $record = Product::where('organization_id', $request->attributes->get('organization')->id)->findOrFail($product);
+        $record = Product::whereIn('organization_id', Organization::allIds())->findOrFail($product);
         Gate::authorize('view', $record);
 
         return Inertia::render('Product', ['product' => $record, 'canManage' => $request->user()->can('update', $record),
@@ -103,8 +102,8 @@ class CatalogController extends Controller
     private function status(Request $request, int $product, bool $archive): RedirectResponse
     {
         DB::transaction(function () use ($request, $product, $archive): void {
-            Organization::whereKey($request->attributes->get('organization')->id)->lockForUpdate()->firstOrFail();
-            $record = Product::where('organization_id', $request->attributes->get('organization')->id)->lockForUpdate()->findOrFail($product);
+            $record = Product::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($product);
+            Organization::whereKey($record->organization_id)->lockForUpdate()->firstOrFail();
             Gate::authorize('update', $record);
             if ($archive && Product::where('parent_product_id', $record->id)->whereNull('archived_at')->exists()) {
                 throw ValidationException::withMessages(['product' => 'Avval faol variantlarni arxivlang.']);

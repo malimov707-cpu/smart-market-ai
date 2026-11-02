@@ -8,6 +8,7 @@ use App\Http\Requests\SupplierRequest;
 use App\Models\AuditLog;
 use App\Models\CatalogFile;
 use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\Supplier;
 use App\Models\SupplierDispute;
 use App\Models\SupplierReview;
@@ -47,7 +48,7 @@ class SupplierController extends Controller
 
     private function query(Request $request): Builder
     {
-        return Supplier::where('organization_id', $request->attributes->get('organization')->id)
+        return Supplier::whereIn('organization_id', Organization::allIds())
             ->when($request->input('q'), fn ($query, $q) => $query->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($q).'%']));
     }
 
@@ -127,7 +128,7 @@ class SupplierController extends Controller
     private function status(Request $request, int $id, bool $archive): RedirectResponse
     {
         DB::transaction(function () use ($request, $id, $archive): void {
-            $record = Supplier::where('organization_id', $request->attributes->get('organization')->id)->lockForUpdate()->findOrFail($id);
+            $record = Supplier::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($id);
             Gate::authorize('update', $record);
             if (($record->archived_at !== null) === $archive) {
                 return;
@@ -205,7 +206,7 @@ class SupplierController extends Controller
 
     private function record(Request $request, int $id): Supplier
     {
-        return Supplier::where('organization_id', $request->attributes->get('organization')->id)->findOrFail($id);
+        return Supplier::whereIn('organization_id', Organization::allIds())->findOrFail($id);
     }
 
     private function audit(Request $request, Supplier $record, string $action, array $metadata = []): void

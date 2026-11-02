@@ -80,7 +80,7 @@ it('filters sources and construction direction without doing external requests w
     ]]);
     $this->actingAs($user)->get('/market?department=construction&source=tezqur&q='.urlencode('цемент'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('filters.department', 'construction')->where('market.total', 1)->where('market.products.0.source_name', 'TezQur')
-        ->missing('market.products.0.search_text')->has('market.sources', 4));
+        ->missing('market.products.0.search_text')->has('market.sources', 6));
     Http::assertNothingSent();
     expect(app(PublicMarketCatalog::class)->search('', [], 'grocery')['total'])->toBe(0);
     $this->get('/market?source=untrusted')->assertSessionHasErrors('source');

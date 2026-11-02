@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 #[Hidden(['password', 'remember_token', 'security_version'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
-    protected $attributes = ['is_active' => true, 'security_version' => 0, 'locale' => 'uz'];
+    protected $attributes = ['is_active' => true, 'security_version' => 0, 'locale' => 'uz', 'telegram_briefing' => true];
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -46,6 +46,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_platform_admin' => 'boolean',
             'is_suspended' => 'boolean',
             'security_version' => 'integer',
+            'telegram_briefing' => 'boolean',
         ];
     }
 }

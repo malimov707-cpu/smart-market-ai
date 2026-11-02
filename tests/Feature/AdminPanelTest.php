@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -17,13 +16,13 @@ it('requires authentication and platform access on every admin endpoint', functi
     expect($target->fresh()->is_suspended)->toBeFalse();
 });
 
-it('renders cross organization administration without requiring a membership and filters users', function () {
+it('renders global administration without organization data and filters users', function () {
     $admin = User::factory()->create(['is_platform_admin' => true]);
     [$owner] = marketIdentity(isPlatformAdmin: false);
     $this->actingAs($admin)->get('/admin?q='.urlencode($owner->email))
         ->assertInertia(fn (Assert $page) => $page->component('Admin')->where('stats.users', 2)
-            ->where('stats.organizations', 1)->has('users.data', 1)->where('users.data.0.email', $owner->email)
-            ->missing('users.data.0.password')->missing('users.data.0.remember_token')->has('organizations.data', 1));
+            ->has('users.data', 1)->where('users.data.0.email', $owner->email)
+            ->missing('users.data.0.password')->missing('users.data.0.remember_token')->missing('organizations'));
 });
 
 it('suspends a user revokes sessions and records the administrator and target', function () {
@@ -73,21 +72,21 @@ it('protects administrator accounts and rejects invalid operations', function ()
     expect($other->fresh()->is_suspended)->toBeFalse();
 });
 
-it('requires verified active platform administrators', function () {
+it('allows unverified active admins and still refuses inactive admins', function () {
     $admin = User::factory()->unverified()->create(['is_platform_admin' => true]);
-    $this->actingAs($admin)->get('/admin')->assertRedirect('/verify-email');
+    $this->actingAs($admin)->get('/admin')->assertOk();
     $admin->forceFill(['is_active' => false])->save();
     $this->get('/admin')->assertRedirect('/login');
 });
 
-it('grants platform access only to an existing verified account through the console', function () {
+it('grants platform access to existing active accounts through the console without verifying email', function () {
     $user = User::factory()->create();
     $this->artisan('admin:grant', ['email' => $user->email])->assertSuccessful();
     expect($user->fresh()->is_platform_admin)->toBeTrue();
     $this->assertDatabaseHas('security_events', ['user_id' => $user->id, 'action' => 'admin.granted.cli']);
     $unverified = User::factory()->unverified()->create();
-    $this->artisan('admin:grant', ['email' => $unverified->email])->assertFailed();
-    expect($unverified->fresh()->is_platform_admin)->toBeFalse();
+    $this->artisan('admin:grant', ['email' => $unverified->email])->assertSuccessful();
+    expect($unverified->fresh()->is_platform_admin)->toBeTrue();
     $this->artisan('admin:grant', ['email' => 'missing@example.test'])->assertFailed();
 });
 
@@ -100,30 +99,17 @@ it('provisions a new administrator without overwriting an existing account', fun
     $this->artisan('admin:grant', ['email' => 'bootstrap@example.test', '--create' => true])->assertSuccessful();
     $admin = User::where('email', 'bootstrap@example.test')->sole();
     expect($admin->is_platform_admin)->toBeTrue();
-    expect($admin->hasVerifiedEmail())->toBeTrue();
+    expect($admin->hasVerifiedEmail())->toBeFalse();
     $passwordHash = $admin->password;
     $this->artisan('admin:grant', ['email' => $admin->email, '--create' => true])->assertFailed();
     expect($admin->fresh()->password)->toBe($passwordHash);
 });
 
-it('creates an administrator owned workspace and opens it without a broken membership link', function () {
+it('does not expose organization management endpoints', function () {
     $admin = User::factory()->create(['is_platform_admin' => true]);
-    $this->actingAs($admin)->post('/admin/organizations', ['name' => 'My Workspace', 'city' => 'Toshkent'])->assertRedirect('/dashboard');
-    $organization = Organization::where('name', 'My Workspace')->sole();
-    $this->assertDatabaseHas('organization_user', ['organization_id' => $organization->id, 'user_id' => $admin->id, 'role' => 'owner']);
-    $this->get('/dashboard')->assertOk();
-    $this->assertDatabaseHas('security_events', ['user_id' => $admin->id, 'action' => 'admin.organization.created.'.$organization->id]);
-});
-
-it('allows platform organization edits but rejects unprivileged and invalid changes', function () {
-    [$owner, $organization] = marketIdentity(isPlatformAdmin: false);
-    $this->actingAs($owner)->post('/admin/organizations', ['name' => 'Denied', 'city' => 'City'])->assertForbidden();
-    $this->post('/admin/organizations/'.$organization->id, ['name' => 'Denied', 'city' => 'City'])->assertForbidden();
-    $admin = User::factory()->create(['is_platform_admin' => true]);
-    $this->actingAs($admin)->post('/admin/organizations/'.$organization->id, ['name' => 'Updated', 'city' => 'Samarqand'])->assertSessionHasNoErrors();
-    expect($organization->fresh()->name)->toBe('Updated');
-    $this->post('/admin/organizations', [])->assertSessionHasErrors(['name', 'city']);
-    $this->post('/admin/organizations/'.$organization->id, ['name' => '', 'city' => 'City'])->assertSessionHasErrors('name');
+    $this->actingAs($admin)->get('/settings')->assertNotFound();
+    $this->post('/organization', ['organization_id' => 1])->assertNotFound();
+    $this->post('/admin/organizations', ['name' => 'Legacy', 'city' => 'Toshkent'])->assertNotFound();
 });
 
 it('filters account states without exposing unrelated matches', function () {

@@ -51,7 +51,7 @@ it('does not revive old quotes when newest is expired incompatible rejected or d
     expect($result['status'])->toBe('insufficient_data');
 })->with(['expired', 'incompatible', 'rejected', 'disputed']);
 
-it('honors recording cutoff and correction timestamps and denies foreign filter identities', function () {
+it('honors recording cutoff and allows global admins to filter across legacy partitions', function () {
     $this->freezeTime();
     [$user,$org] = marketIdentity();
     $old = Offer::factory()->create(['organization_id' => $org->id, 'price' => '10']);
@@ -63,8 +63,9 @@ it('honors recording cutoff and correction timestamps and denies foreign filter 
     $result = app(AnalyticsPrices::class)->product($old->product, $user, CarbonImmutable::now(), $cutoff->subDays(30));
     expect($result['suppliers'][0]['latest_id'])->toBe($new->id);
     $foreign = Offer::factory()->create();
-    $this->actingAs($user)->get('/analytics?product_id='.$foreign->product_id)->assertNotFound();
-    $this->get('/analytics/export?supplier_id='.$foreign->supplier_id)->assertNotFound();
+    $this->actingAs($user)->get('/analytics?product_id='.$foreign->product_id)->assertOk();
+    $response = $this->get('/analytics/export?supplier_id='.$foreign->supplier_id)->assertOk();
+    expect($response->streamedContent())->toContain($foreign->supplier->name);
 });
 
 it('reports no percentage for a zero legacy baseline and does not divide by zero', function () {

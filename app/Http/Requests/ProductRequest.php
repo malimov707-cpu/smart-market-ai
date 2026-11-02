@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Organization;
 use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,7 @@ class ProductRequest extends FormRequest
     public function authorize(): bool
     {
         if ($id = $this->route('product')) {
-            Product::where('organization_id', $this->attributes->get('organization')->id)->findOrFail($id);
+            Product::whereIn('organization_id', Organization::allIds())->findOrFail($id);
         }
 
         return $this->user()->can('catalog', $this->attributes->get('organization'));
@@ -21,7 +22,12 @@ class ProductRequest extends FormRequest
 
     public function rules(): array
     {
-        return self::rulesFor($this->attributes->get('organization')->id, $this->route('product') ? (int) $this->route('product') : null);
+        $id = $this->route('product') ? (int) $this->route('product') : null;
+        $tenant = $id
+            ? Product::whereIn('organization_id', Organization::allIds())->findOrFail($id)->organization_id
+            : $this->attributes->get('organization')->id;
+
+        return self::rulesFor((int) $tenant, $id);
     }
 
     public static function rulesFor(int $tenant, ?int $id = null): array

@@ -28,16 +28,16 @@ it('rejects spoofed mime and oversized images', function () {
     $this->post('/products/'.$product->id.'/images', ['file' => UploadedFile::fake()->image('big.png')->size(2049)])->assertSessionHasErrors('file');
     $this->assertDatabaseCount('catalog_files', 0);
 });
-it('denies foreign file downloads replacement and retirement', function () {
+it('allows platform administrators to manage files across legacy organization partitions', function () {
     Storage::fake('catalog');
     [$user,$org] = marketIdentity();
     $product = Product::factory()->create(['organization_id' => $org->id]);
     $this->actingAs($user)->post('/products/'.$product->id.'/images', ['file' => UploadedFile::fake()->image('private.png')])->assertSessionHasNoErrors();
     $file = CatalogFile::sole();
-    [$other,$otherOrg] = marketIdentity();
-    $this->actingAs($other)->withSession(['organization_id' => $otherOrg->id])->get('/catalog/files/'.$file->id)->assertNotFound();
-    $this->post('/catalog/files/'.$file->id.'/retire')->assertNotFound();
-    $this->post('/products/'.$product->id.'/images', ['file' => UploadedFile::fake()->image('new.png')])->assertNotFound();
+    [$other] = marketIdentity();
+    $this->actingAs($other)->get('/catalog/files/'.$file->id)->assertOk();
+    $this->post('/catalog/files/'.$file->id.'/retire')->assertSessionHasNoErrors();
+    $this->post('/products/'.$product->id.'/images', ['file' => UploadedFile::fake()->image('new.png')])->assertSessionHasNoErrors();
 });
 it('replaces and retires images without overwriting source files', function () {
     Storage::fake('catalog');
@@ -55,7 +55,7 @@ it('replaces and retires images without overwriting source files', function () {
 });
 it('denies read-only image uploads and retirement', function () {
     Storage::fake('catalog');
-    [$user,$org] = marketIdentity('auditor');
+    [$user,$org] = marketIdentity('auditor', isPlatformAdmin: false);
     $product = Product::factory()->create(['organization_id' => $org->id]);
     $this->actingAs($user)->post('/products/'.$product->id.'/images', ['file' => UploadedFile::fake()->image('image.png')])->assertForbidden();
 });

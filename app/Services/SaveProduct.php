@@ -20,13 +20,14 @@ class SaveProduct
     public function execute(User $actor, Organization $organization, array $data, ?int $id = null): Product
     {
         return DB::transaction(function () use ($actor, $organization, $data, $id): Product {
-            Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
-            Gate::forUser($actor)->authorize('catalog', $organization);
-            $product = $id ? Product::where('organization_id', $organization->id)->lockForUpdate()->findOrFail($id) : null;
+            $product = $id ? Product::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($id) : null;
+            $organizationId = $product?->organization_id ?? $organization->id;
+            $recordOrganization = Organization::whereKey($organizationId)->lockForUpdate()->firstOrFail();
+            Gate::forUser($actor)->authorize('catalog', $recordOrganization);
             if ($product) {
                 $data = [...$product->only(['package_quantity', 'package_unit', 'parent_product_id']), 'variant_attributes' => $product->variant_attributes ?? [], ...$data];
             }
-            $data = Validator::make($data, ProductRequest::rulesFor($organization->id, $id))->validate();
+            $data = Validator::make($data, ProductRequest::rulesFor($organizationId, $id))->validate();
             if ($product?->archived_at) {
                 throw ValidationException::withMessages(['product' => 'Avval mahsulotni arxivdan tiklang.']);
             }
@@ -37,7 +38,7 @@ class SaveProduct
                 throw ValidationException::withMessages(['variant_attributes' => 'Narx tarixi mavjud variantning identifikatsiyasini o‘zgartirib bo‘lmaydi. Yangi SKU yarating.']);
             }
             if (! empty($data['parent_product_id'])) {
-                $parent = Product::where('organization_id', $organization->id)->findOrFail($data['parent_product_id']);
+                $parent = Product::where('organization_id', $organizationId)->findOrFail($data['parent_product_id']);
                 if ($parent->id === $id || $parent->unit !== $data['unit'] || empty($data['variant_attributes']) || ($id && Product::where('parent_product_id', $id)->exists())) {
                     throw ValidationException::withMessages(['parent_product_id' => 'Variant birligi mos, attributlari mavjud va parent bog‘lanishi siklsiz bo‘lishi kerak.']);
                 }
@@ -55,7 +56,7 @@ class SaveProduct
             } else {
                 $product = Product::create([...$data, 'organization_id' => $organization->id]);
             }
-            AuditLog::create(['organization_id' => $organization->id, 'user_id' => $actor->id, 'action' => $id ? 'product.updated' : 'product.created', 'subject_type' => 'products', 'subject_id' => $product->id]);
+            AuditLog::create(['organization_id' => $organizationId, 'user_id' => $actor->id, 'action' => $id ? 'product.updated' : 'product.created', 'subject_type' => 'products', 'subject_id' => $product->id]);
 
             return $product;
         });

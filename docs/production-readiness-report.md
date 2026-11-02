@@ -6,6 +6,12 @@ faqat yangi vaqtinchalik test bazasi/subprocessda, migratsiyasiz sinaldi. Local
 monitoring flag o‘chiq, worker unknown. Production tasnifi **NOT READY**; staging
 server/SMTP/TLS/monitoring/backup/rollback tashqi gate’lari yopilmadi.
 
+2026-11-02 corrective follow-up: Laravel suite **312 total / 298 passed / 14 skipped /
+1982 assertions / 12.068 s**; desktop/mobile Playwright **28/28 passed / 2.4 min**;
+TypeScript checks, production frontend build, Pint va `git diff --check` passed.
+Bu lokal regression dalili; production credentials, staging va release gate’larini
+tasdiqlamaydi.
+
 2026-10-31 operations yangilanishi: **NOT READY** (production deployment uchun).
 Lokal login HTTP 200; read-only probe DB/storage reachable, 11 migration/0 pending
 schema. Operations testlari 11 passed / 30 assertions. Worker unknown, SMTP/AI live,
@@ -13,7 +19,7 @@ staging TLS, monitoring, encrypted PostgreSQL restore va rollback rehearsal ochi
 Migration/deploy bajarilmadi. [Joriy dalillar](production-operations-sprint.md).
 Quyidagi full-suite/browser natijalari oldingi corrective sprintga tegishli.
 
-Baholash: 2026-10-31, Asia/Tashkent. **Lokal sinov uchun ishlaydi; production release
+Baholash: 2026-11-02, Asia/Tashkent. **Lokal sinov uchun ishlaydi; production release
 candidate emas.** 7–10-bosqichlar ushbu corrective sprintda boshlanmadi.
 
 ## Amaldagi holat
@@ -57,20 +63,23 @@ sonlar o‘sha bosqich natijalari bo‘lib qoladi, yangi baseline emas.
 
 ## Shu-sessiyadagi tekshiruvlar
 
-Baseline: PostgreSQL **201 passed / 1424 assertions / 43.988 s**;
+Oldingi sprint baseline: PostgreSQL **201 passed / 1424 assertions / 43.988 s**;
 SQLite **188 passed / 13 skipped / 1408 assertions / 13.734 s**;
 Chromium **12 passed / 59.8 s**.
 
 | Tekshiruv | Yakuniy haqiqiy natija |
 | --- | --- |
+| Laravel SQLite suite (2026-11-02) | 312 total; 298 passed, 14 skipped; 1982 assertions; 12.068 s |
+| Playwright desktop + mobile (2026-11-02) | 28/28 passed; 2.4 min |
+| TypeScript app/browser (2026-11-02) | Passed |
+| Production frontend build (2026-11-02) | Passed; 2639 modules; 546 ms |
+| Pint (2026-11-02) | Passed |
 | PostgreSQL full suite | 216 passed, 2 skipped; 1496 assertions; 22.900 s |
 | Alohida haqiqiy PostgreSQL queue worker | 1 passed; 17 assertions; 3.695 s |
 | SQLite full suite | 204 passed, 14 skipped; 1482 assertions; 9.103 s |
 | Chromium desktop | 9/9 passed |
 | Chromium mobil (Pixel 7 viewport) | 9/9 passed |
 | Jami browser | 18/18 passed; runner 1.7 min deb ko‘rsatdi |
-| TypeScript app/browser | Passed |
-| Production frontend build | Passed; 2630 module, 1.55 s |
 | Pint / Composer validate | Passed |
 | Composer / npm audits | Advisory yoki vulnerability topilmadi (shu execution paytida) |
 | Config / route / view cache | Yaratish va clear passed, lokal cachelar tozalandi |

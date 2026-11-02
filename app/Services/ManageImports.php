@@ -517,9 +517,9 @@ class ManageImports
     }
 
     /** Phase 6 hook: small recent-import feed for analytics dashboard (no secrets). */
-    public static function recentFor(int $organizationId, int $limit = 5): array
+    public static function recentFor(int $limit = 5): array
     {
-        return ImportBatch::where('organization_id', $organizationId)->orderByDesc('id')->limit($limit)
+        return ImportBatch::whereIn('organization_id', Organization::allIds())->orderByDesc('id')->limit($limit)
             ->get(['id', 'type', 'format', 'file_name', 'status', 'row_count', 'error_count', 'completed_at', 'created_at'])
             ->map(fn (ImportBatch $batch): array => ['id' => $batch->id, 'type' => $batch->type, 'format' => $batch->format,
                 'file_name' => $batch->file_name, 'status' => $batch->status, 'row_count' => $batch->row_count,

@@ -21,7 +21,7 @@ uses(LazilyRefreshDatabase::class);
 
 it('redirects unauthenticated users from every protected screen', function (string $page) {
     $this->get('/'.$page)->assertRedirect('/login');
-})->with(['dashboard', 'products', 'suppliers', 'offers', 'comparison', 'imports', 'ai', 'settings', 'imports/template']);
+})->with(['dashboard', 'products', 'suppliers', 'offers', 'comparison', 'imports', 'ai', 'imports/template']);
 
 it('registers an ordinary user without creating an organization or accepting a supplied role', function () {
     $this->post('/register', [
@@ -57,33 +57,45 @@ it('rate limits repeated login attempts', function () {
     $this->post('/login', ['email' => 'absent@example.test', 'password' => 'wrong'])->assertTooManyRequests();
 });
 
-it('only lists products belonging to the selected organization', function () {
+it('lists products from every legacy organization for platform administrators', function () {
     [$user, $organization] = marketIdentity();
-    $mine = Product::factory()->create(['organization_id' => $organization->id]);
-    Product::factory()->create();
+    $first = Product::factory()->create(['organization_id' => $organization->id, 'name' => 'A Product']);
+    $second = Product::factory()->create(['name' => 'B Product']);
     $this->actingAs($user)->get('/products')->assertInertia(fn (Assert $page) => $page
-        ->component('Workspace')->has('products.data', 1)->where('products.data.0.id', $mine->id));
+        ->component('Workspace')->has('products.data', 2)->where('products.data.0.id', min($first->id, $second->id)));
 });
 
-it('switches only to a membership and rejects a revoked selection', function () {
+it('allows a platform administrator without organization membership to open the global catalog', function () {
+    $admin = User::factory()->create(['is_platform_admin' => true]);
+    $organizations = Organization::factory()->count(2)->create();
+    Product::factory()->create(['organization_id' => $organizations[0]->id]);
+    $second = Product::factory()->create(['organization_id' => $organizations[1]->id]);
+
+    $this->actingAs($admin)->get('/products')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('Workspace')->has('products.data', 2));
+    $this->get('/products/'.$second->id)->assertOk();
+});
+
+it('does not allow legacy organization membership to switch the active workspace', function () {
     [$user, $organization] = marketIdentity();
     $other = Organization::factory()->create();
-    $this->actingAs($user)->post('/organization', ['organization_id' => $other->id])->assertNotFound();
     $other->users()->attach($user, ['role' => 'auditor']);
-    $this->post('/organization', ['organization_id' => $other->id])->assertRedirect('/dashboard');
-    $this->get('/dashboard')->assertInertia(fn (Assert $page) => $page->where('organization.id', $other->id));
-    $other->users()->detach($user);
-    $this->get('/dashboard')->assertForbidden();
+    $this->actingAs($user)->post('/organization', ['organization_id' => $other->id])->assertNotFound();
+    $this->get('/dashboard')->assertOk()->assertInertia(fn (Assert $page) => $page->missing('organization')->missing('organizations'));
+    $this->assertDatabaseHas('organization_user', ['organization_id' => $organization->id, 'user_id' => $user->id]);
+    $this->assertDatabaseHas('organization_user', ['organization_id' => $other->id, 'user_id' => $user->id]);
 });
 
-it('applies the complete management permission matrix', function (string $role, bool $allowed) {
-    [$user, $organization] = marketIdentity($role);
-    expect($user->can('manage', $organization))->toBe($allowed);
+it('allows management only to platform administrators regardless of legacy memberships', function (bool $isPlatformAdmin) {
+    [$user, $organization] = marketIdentity('owner', isPlatformAdmin: $isPlatformAdmin);
+    expect($user->can('manage', $organization))->toBe($isPlatformAdmin);
+    expect($user->can('catalog', $organization))->toBe($isPlatformAdmin);
+    expect($user->can('administer', $organization))->toBe($isPlatformAdmin);
     expect(User::factory()->create()->can('manage', $organization))->toBeFalse();
-})->with([['owner', true], ['manager', true], ['auditor', false]]);
+})->with([true, false]);
 
-it('prevents an auditor from writing records and importing', function () {
-    [$user] = marketIdentity('auditor');
+it('prevents a consumer with a legacy owner membership from writing records and importing', function () {
+    [$user] = marketIdentity('owner', isPlatformAdmin: false);
     $this->actingAs($user)->post('/products', ['name' => 'Hidden'])->assertForbidden();
     $this->post('/suppliers', ['name' => 'Hidden'])->assertForbidden();
     $this->post('/offers', [])->assertForbidden();
@@ -115,11 +127,12 @@ it('rejects cross-tenant offer references', function (string $field) {
     $this->assertDatabaseCount('offers', 0);
 })->with(['product_id', 'supplier_id']);
 
-it('archives its own product and rejects another organization record', function () {
+it('archives products across legacy organization partitions', function () {
     [$user, $organization] = marketIdentity();
     $own = Product::factory()->create(['organization_id' => $organization->id]);
     $other = Product::factory()->create();
-    $this->actingAs($user)->post('/products/'.$other->id.'/archive')->assertNotFound();
+    $this->actingAs($user)->post('/products/'.$other->id.'/archive')->assertRedirect();
+    expect($other->fresh()->archived_at)->not->toBeNull();
     $this->post('/products/'.$own->id.'/archive')->assertRedirect();
     expect($own->fresh()->archived_at)->not->toBeNull();
     $this->assertDatabaseHas('audit_logs', ['action' => 'product.archived']);
@@ -178,10 +191,10 @@ it('ranks complete current costs ahead of missing delivery stale and incompatibl
     expect($rows[$expired->id]['eligible'])->toBeFalse();
 });
 
-it('protects comparison from cross-tenant product lookup', function () {
+it('allows global administrators to compare products from any legacy organization', function () {
     [$user] = marketIdentity();
     $other = Product::factory()->create();
-    $this->actingAs($user)->get('/compare?product_id='.$other->id.'&quantity=20')->assertNotFound();
+    $this->actingAs($user)->get('/compare?product_id='.$other->id.'&quantity=20')->assertOk();
     $this->get('/compare?product_id='.$other->id.'&quantity=0')->assertSessionHasErrors('quantity');
 });
 

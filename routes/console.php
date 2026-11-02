@@ -11,3 +11,5 @@ Artisan::command('inspire', function () {
 Schedule::command('market:sync')->everyFiveMinutes()->withoutOverlapping(5);
 
 Schedule::command('market:sync-construction')->everyFifteenMinutes()->withoutOverlapping(10);
+
+Schedule::command('telegram:briefing')->weekdays()->at('07:30')->timezone('Asia/Tashkent')->withoutOverlapping(10);

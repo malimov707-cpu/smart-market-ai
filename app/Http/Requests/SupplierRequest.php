@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Organization;
 use App\Models\Supplier;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -12,7 +13,7 @@ class SupplierRequest extends FormRequest
     public function authorize(): bool
     {
         if ($id = $this->route('supplier')) {
-            Supplier::where('organization_id', $this->attributes->get('organization')->id)->findOrFail($id);
+            Supplier::whereIn('organization_id', Organization::allIds())->findOrFail($id);
         }
 
         return $this->user()->can('catalog', $this->attributes->get('organization'));

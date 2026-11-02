@@ -8,6 +8,7 @@ use App\Http\Requests\UploadImportRequest;
 use App\Models\AuditLog;
 use App\Models\ExtractionAttempt;
 use App\Models\ImportBatch;
+use App\Models\Organization;
 use App\Services\DocumentExtractor;
 use App\Services\ImportReconciliation;
 use App\Services\ManageImports;
@@ -30,10 +31,10 @@ class ManagedImportController extends Controller
         $filters = $request->validate(['status' => ['nullable', 'in:uploaded,validating,preview_ready,awaiting_confirmation,queued,processing,completed,completed_with_errors,failed,cancelled'],
             'type' => ['nullable', 'in:products,suppliers,offers']]);
 
-        return Inertia::render('ManagedImports', ['batches' => ImportBatch::where('organization_id', $organization->id)
+        return Inertia::render('ManagedImports', ['batches' => ImportBatch::whereIn('organization_id', Organization::allIds())
             ->when($filters['status'] ?? null, fn ($query, $value) => $query->where('status', $value))
             ->when($filters['type'] ?? null, fn ($query, $value) => $query->where('type', $value))->orderByDesc('id')->paginate(20)->withQueryString(),
-            'queueStatus' => ['driver' => config('imports.queue_connection'), 'queue' => config('imports.queue'), 'worker' => 'unknown', 'pending_imports' => ImportBatch::where('organization_id', $organization->id)->whereIn('status', ['uploaded', 'queued', 'validating', 'processing'])->count(), 'failed_imports' => ImportBatch::where('organization_id', $organization->id)->where('status', 'failed')->count(), 'last_completed_at' => ImportBatch::where('organization_id', $organization->id)->max('completed_at')],
+            'queueStatus' => ['driver' => config('imports.queue_connection'), 'queue' => config('imports.queue'), 'worker' => 'unknown', 'pending_imports' => ImportBatch::whereIn('organization_id', Organization::allIds())->whereIn('status', ['uploaded', 'queued', 'validating', 'processing'])->count(), 'failed_imports' => ImportBatch::whereIn('organization_id', Organization::allIds())->where('status', 'failed')->count(), 'last_completed_at' => ImportBatch::whereIn('organization_id', Organization::allIds())->max('completed_at')],
             'filters' => $filters, 'provider' => $extractor->availability(), 'canCatalog' => $request->user()->can('catalog', $organization),
             'canOffer' => $request->user()->can('manage', $organization)]);
     }
@@ -136,7 +137,7 @@ class ManagedImportController extends Controller
 
     private function record(Request $request, int $id): ImportBatch
     {
-        $batch = ImportBatch::where('organization_id', $request->attributes->get('organization')->id)->findOrFail($id);
+        $batch = ImportBatch::whereIn('organization_id', Organization::allIds())->findOrFail($id);
         Gate::authorize('view', $batch);
 
         return $batch;

@@ -24,7 +24,7 @@ class AiAssistantController extends Controller
             return response()->json(['message' => 'OpenRouter API kaliti hali sozlanmagan.'], 503);
         }
         $context = $insights->summarize($organization, $request->user(), isset($data['product_id']) ? (int) $data['product_id'] : null, (string) ($data['quantity'] ?? '1'));
-        $key = 'ai_chat.'.$organization->id;
+        $key = OpenRouterAssistant::SESSION_KEY;
         $history = $request->session()->get($key, []);
         try {
             $result = $assistant->answer($data['message'], $context, $history);
@@ -44,7 +44,7 @@ class AiAssistantController extends Controller
     {
         $organization = $request->attributes->get('organization');
         Gate::authorize('view', $organization);
-        $request->session()->forget('ai_chat.'.$organization->id);
+        $request->session()->forget(OpenRouterAssistant::SESSION_KEY);
 
         return response()->json(['cleared' => true]);
     }

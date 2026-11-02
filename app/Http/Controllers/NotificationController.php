@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\AlertRule;
 use App\Models\AppNotification;
 use App\Models\AuditLog;
+use App\Models\Organization;
 use App\Services\ManageAlerts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class NotificationController extends Controller
     {
         $organization = $request->attributes->get('organization');
         $unreadOnly = $request->boolean('unread');
-        $notifications = AppNotification::where('organization_id', $organization->id)->where('user_id', $request->user()->id)
+        $notifications = AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)
             ->when($unreadOnly, fn ($query) => $query->unread())
             ->orderByDesc('id')->paginate(20)->withQueryString()->through(fn (AppNotification $n): array => [
                 'id' => $n->id, 'event_type' => $n->event_type, 'title' => $n->title, 'body' => $n->body,
@@ -29,7 +30,7 @@ class NotificationController extends Controller
 
         return Inertia::render('Notifications', [
             'notifications' => $notifications,
-            'unreadCount' => $this->unreadCount($request->user()->id, $organization->id),
+            'unreadCount' => $this->unreadCount($request->user()->id),
             'filter' => $unreadOnly ? 'unread' : 'all',
         ]);
     }
@@ -57,7 +58,7 @@ class NotificationController extends Controller
     public function updateRule(Request $request, ManageAlerts $alerts, int $rule): RedirectResponse
     {
         $organization = $request->attributes->get('organization');
-        $existing = AlertRule::where('organization_id', $organization->id)->findOrFail($rule);
+        $existing = AlertRule::whereIn('organization_id', Organization::allIds())->findOrFail($rule);
         $alerts->update($request->user(), $existing, $request->all());
 
         return back()->with('success', 'Qoida yangilandi.');
@@ -66,7 +67,7 @@ class NotificationController extends Controller
     public function read(Request $request, int $notification): RedirectResponse
     {
         $organization = $request->attributes->get('organization');
-        AppNotification::where('organization_id', $organization->id)->where('user_id', $request->user()->id)->findOrFail($notification)
+        AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)->findOrFail($notification)
             ->forceFill(['read_at' => now()])->save();
 
         return back();
@@ -75,16 +76,16 @@ class NotificationController extends Controller
     public function readAll(Request $request): RedirectResponse
     {
         $organization = $request->attributes->get('organization');
-        AppNotification::where('organization_id', $organization->id)->where('user_id', $request->user()->id)->unread()
+        AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)->unread()
             ->update(['read_at' => now()]);
         AuditLog::create(['organization_id' => $organization->id, 'user_id' => $request->user()->id, 'action' => 'notifications.read_all', 'subject_type' => 'user', 'subject_id' => $request->user()->id]);
 
         return back();
     }
 
-    private function unreadCount(int $userId, int $organizationId): int
+    private function unreadCount(int $userId): int
     {
-        return AppNotification::where('organization_id', $organizationId)->where('user_id', $userId)->unread()->count();
+        return AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $userId)->unread()->count();
     }
 
     private function shape(AlertRule $rule): array

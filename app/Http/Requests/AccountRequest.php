@@ -22,7 +22,10 @@ class AccountRequest extends FormRequest
                 'name' => ['required', 'string', 'max:120'],
                 'email' => ['required', 'email', 'max:254', Rule::unique('users')->ignore($this->user()->id)],
                 'locale' => ['required', Rule::in(['uz', 'ru', 'en'])],
-                'current_password' => ['required', 'current_password'],
+                'current_password' => $this->user()->telegram_login_id !== null
+                    && str_ends_with($this->user()->email, '@login.smart-market.invalid')
+                    ? ['nullable']
+                    : ['required', 'current_password'],
             ],
             'account.password' => [
                 'current_password' => ['required', 'current_password'],

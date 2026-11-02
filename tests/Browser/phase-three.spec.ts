@@ -21,7 +21,7 @@ test('latest price historical cutoff provenance independent review trend and cur
     await page.getByLabel('Nomi', { exact: true }).fill('PHASE3 Supplier');
     await page.getByRole('button', { name: 'Saqlash', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Yetkazib beruvchi qo‘shildi');
-    await page.getByRole('link', { name: 'PHASE3 Supplier', exact: true }).click();
+    await page.getByRole('link', { name: 'PHASE3 Supplier', exact: true }).first().click();
     await expect(page).toHaveURL(/suppliers\/\d+$/);
     await page.getByLabel('Hujjat (PDF/rasm, 5 MB)', { exact: true }).setInputFiles({ name: 'phase3-price-evidence.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\nAUTOMATED TEST ONLY price evidence') });
     await page.getByRole('button', { name: 'Fayl yuklash', exact: true }).click();
@@ -82,6 +82,6 @@ test('latest price historical cutoff provenance independent review trend and cur
     await login(page, `reviewer-${platform}@example.test`); await page.goto('/exchange-rates');
     await page.getByRole('button', { name: 'Mustaqil Owner tasdig‘i', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Kurs tasdiqlandi');
-    await expect(page.getByText(/Tasdiqlagan: #/)).toBeVisible();
+    await expect(page.getByText(/Tasdiqlagan: #/).first()).toBeVisible();
     expect(errors).toEqual([]);
 });

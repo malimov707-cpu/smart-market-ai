@@ -30,7 +30,7 @@ class ManageAlerts
 
         Gate::forUser($actor)->authorize('manage', $organization);
 
-        return AlertRule::where('organization_id', $organization->id)->where('user_id', $actor->id)
+        return AlertRule::whereIn('organization_id', Organization::allIds())->where('user_id', $actor->id)
             ->when($input['event_type'] ?? null, fn ($query, $type) => $query->where('event_type', $type))
             ->when(isset($input['enabled']), fn ($query) => $query->where('enabled', (bool) $input['enabled']))
             ->orderBy('id')->get()->all();
@@ -52,10 +52,10 @@ class ManageAlerts
         if ($data['scope_type'] !== 'global') {
             $data['scope_id'] = (int) ($data['scope_id'] ?? 0);
             $exists = $data['scope_type'] === 'product'
-                ? DB::table('products')->where('organization_id', $organization->id)->where('id', $data['scope_id'])->exists()
+                ? DB::table('products')->whereIn('organization_id', Organization::allIds())->where('id', $data['scope_id'])->exists()
                 : ($data['scope_type'] === 'supplier'
-                    ? DB::table('suppliers')->where('organization_id', $organization->id)->where('id', $data['scope_id'])->exists()
-                    : DB::table('products')->where('organization_id', $organization->id)->where('category', $data['scope_id'] ?? '')->exists());
+                    ? DB::table('suppliers')->whereIn('organization_id', Organization::allIds())->where('id', $data['scope_id'])->exists()
+                    : DB::table('products')->whereIn('organization_id', Organization::allIds())->where('category', $data['scope_id'] ?? '')->exists());
             abort_unless($exists || ($data['scope_type'] === 'category' && is_string($input['scope_id'] ?? null)), 422, 'Scope mos tashkilot yozuviga tegishli emas.');
         } else {
             $data['scope_id'] = null;
@@ -85,7 +85,7 @@ class ManageAlerts
     /** Notify every enabled matching rule owner. Idempotent via user+dedupe_key. */
     public function dispatch(Organization $organization, string $eventType, string $dedupeKey, string $title, ?string $body = null, array $metadata = [], ?string $url = null): int
     {
-        $rules = AlertRule::where('organization_id', $organization->id)->where('enabled', true)->where('event_type', $eventType)->where('frequency', 'instant')->with('user')->orderBy('id')->get();
+        $rules = AlertRule::whereIn('organization_id', Organization::allIds())->where('enabled', true)->where('event_type', $eventType)->where('frequency', 'instant')->with('user')->orderBy('id')->get();
         $recipients = [];
         foreach ($rules as $rule) {
             $user = $rule->user;

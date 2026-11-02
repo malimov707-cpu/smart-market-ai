@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: ['127.0.0.1', '::1']);
         $middleware->redirectUsersTo(fn (Request $request): string => route($request->user()?->is_platform_admin ? 'admin' : 'market'));
         $middleware->web(append: [HandleInertiaRequests::class], replace: [StartSession::class => CatalogSession::class]);
+        $middleware->validateCsrfTokens(except: ['webhook/telegram/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

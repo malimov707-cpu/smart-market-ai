@@ -8,6 +8,7 @@ use App\Http\Requests\CatalogFileRequest;
 use App\Models\AuditLog;
 use App\Models\CatalogFile;
 use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\PriceReview;
 use App\Models\Product;
 use App\Models\Supplier;
@@ -49,10 +50,10 @@ class CatalogFileController extends Controller
             $mime = 'image/png';
             $extension = 'png';
         }
-        $path = $request->attributes->get('organization')->id.'/'.Str::uuid().'.'.$extension;
+        $path = Str::uuid().'.'.$extension;
         try {
             DB::transaction(function () use ($request, $model, $field, $id, $file, $contents, $path, $mime): void {
-                $record = $model::where('organization_id', $request->attributes->get('organization')->id)->lockForUpdate()->findOrFail($id);
+                $record = $model::whereIn('organization_id', Organization::allIds())->lockForUpdate()->findOrFail($id);
                 Gate::authorize('update', $record);
                 if ($record->archived_at) {
                     throw ValidationException::withMessages(['file' => 'Arxivdagi yozuvni avval tiklang.']);
@@ -117,7 +118,7 @@ class CatalogFileController extends Controller
 
     private function record(Request $request, int $id): CatalogFile
     {
-        return CatalogFile::where('organization_id', $request->attributes->get('organization')->id)->whereNull('retired_at')->findOrFail($id);
+        return CatalogFile::whereIn('organization_id', Organization::allIds())->whereNull('retired_at')->findOrFail($id);
     }
 
     private function ensureNotEvidence(CatalogFile $file): void

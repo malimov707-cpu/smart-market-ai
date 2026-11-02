@@ -1,52 +1,66 @@
 # Smart Market AI
 
-O‘zbekiston bizneslari uchun tashkilotga ajratilgan bozor narxlari va xarid
-ma’lumotlari platformasi. Mavjud katalog/CSV/comparison ustiga identity va
-tashkilot boshqaruvi qo‘shildi. **Mahsulotning barcha bosqichlari hali tugamagan;
-production-ready deb baholanmaydi.**
+O‘zbekiston bozori bo‘yicha mahsulot narxlarini qidirish va solishtirish platformasi.
+Tizimda ikki rol bor: **Admin** barcha katalog, import, tahlil va foydalanuvchilarni
+boshqaradi; **User** ommaviy bozor qidiruvi va shaxsiy kuzatuvlardan foydalanadi.
+Eski tashkilot yozuvlari o‘chirilmagan, ular Admin uchun global ko‘rinishda qoladi.
 
 ## Lokal ishga tushirish
 
-2026-10-31 ops sprintida mavjud muhit uchun `migrate` yoki destructive DB amali
-bajarilmaydi. Quyidagi boshlang‘ich install/schema yo‘riqnomasi joriy muhitga
-qo‘llanmaydi. [Amaldagi deployment tartibi](docs/deployment.md),
-[operatsion dalillar va blockerlar](docs/production-operations-sprint.md).
-
-PHP 8.4 (BCMath, GD va SQLite/PostgreSQL PDO), Composer va Node 24 kerak.
-Faqat yangi checkout uchun:
+PHP 8.4 (BCMath, GD, SQLite/PostgreSQL PDO), Composer va Node 24 kerak. Faqat yangi
+checkout uchun:
 
 ```sh
 composer install
 cp .env.example .env
 php artisan key:generate
-```
-
-Mavjud `.env` ni almashtirmang, mavjud APP_KEY ni qayta yaratmang.
-
-```sh
 npm ci
 php artisan migrate
 npm run build
 php artisan serve
 ```
 
-Artisan chiqargan manzilni oching. Jonli frontend uchun ikkinchi terminalda
-`npm run dev`. Standart foydalanuvchi/parol yoki soxta bozor ma’lumotlari seed qilinmaydi.
+Mavjud `.env` faylini yoki `APP_KEY`ni almashtirmang. Interfeysni ishlab chiqish
+uchun ikkinchi terminalda `npm run dev` ishlating. Standart admin paroli yoki
+soxta bozor narxlari seed qilinmaydi. Birinchi Admin’ni faol hisobga
+`php artisan admin:grant email@example.com` orqali bering; Admin uchun email tasdig‘i
+talab qilinmaydi. Oddiy User AI rasm qidiruvi va boshqaruv funksiyalaridan oldin
+emailini tasdiqlashi kerak.
 
-Yangi ro‘yxatdan o‘tgan hisob emailni tasdiqlashi shart. Haqiqiy SMTP/API mail
-transportini xavfsiz sozlang; log mailerga maxfiy havolalar yozilishi bloklangan.
-`.env` ushbu ish sessiyasida o‘zgartirilmadi. SMTP yetkazib berilishi hali tekshirilmagan.
+Mahalliy muhitda bozor kataloglari va boshqa rejalashtirilgan vazifalarni
+avtomatik bajarish uchun yana bir terminalda `php artisan schedule:work`ni
+ishga tushiring. Aks holda kataloglar oxirgi muvaffaqiyatli yangilangan holatda
+qoladi va eskirgan deb belgilanadi.
 
-## Ishlaydigan imkoniyatlar
+Kamera API’si `localhost` yoki HTTPS va foydalanuvchi ruxsatini talab qiladi.
+Rasm kameradan yoki qurilmadagi JPG/PNG/WebP faylidan olinadi; AI tanish uchun
+OpenRouter sozlanishi kerak. Rasm saqlanmaydi. Narxlar AI'dan emas, ko‘rsatilgan
+katalog manbalaridan olinadi.
 
-Hisob/profil/parol, email verification, sessiyalarni bekor qilish, o‘z hisobini
-faolsizlantirish/qayta faollashtirish; tashkilotni tahrirlash, 5 rol, taklifnomalar
-va a’zolik; katalog, yetkazib beruvchi, qo‘lda/CSV takliflari, aniq narx solishtirish
-va audit. Barcha boshqaruv amallari serverda ruxsat bilan tekshiriladi.
+## Imkoniyatlar
 
-CSV UTF-8: 2 MB/500 satr; tekshiruv to‘liq tugamaguncha hech narsa saqlanmaydi.
-Bir xil yozuv takror kiritilmaydi. Narxlar decimal string/BCMath bilan hisoblanadi.
-Yetkazish noma’lum bo‘lsa to‘liq jami deb ko‘rsatilmaydi. Supplier va narx verification scope’lari dalil/mustaqil reviewer bilan alohida boshqariladi.
+- **User:** Korzinka va qurilish manbalari kataloglarini qidirish, narx va trendni
+  solishtirish, narx o‘zgarishini kuzatish, rasm/kamera orqali mahsulot nomzodini
+  topish, Telegram briefingni ulash.
+- **Admin:** global mahsulot va yetkazib beruvchilar katalogi, taklif/import
+  boshqaruvi, tahlil va eksport, dalil bilan narx/yetkazib beruvchi tekshiruvi,
+  foydalanuvchi va tizim boshqaruvi.
+- **Telegram bot:** `/brief` bozor xulosasi, `/status` ulanish holati, `/help`
+  buyruqlar va `/stop` uzish. Hisob ulash havolasi bir marta ishlaydi.
+- **Google va Telegram login:** Google uchun `GOOGLE_CLIENT_ID` va
+  `GOOGLE_CLIENT_SECRET`ni Google Cloud OAuth Web Client’dan oling va
+  `APP_URL` qiymatiga `/auth/google/callback` qo‘shilgan manzilni ruxsat etilgan
+  redirect URI qilib kiriting. Telegram login uchun BotFather’da botning Login
+  Widget domenini sozlang. Telegram email bermagani sabab yangi Telegram
+  hisobiga ichki manzil beriladi; email bilan himoyalangan imkoniyatlar uchun
+  Hisob sahifasidan haqiqiy email qo‘shib tasdiqlash mumkin.
+- Narx hisoblari decimal arifmetikadan foydalanadi; noma’lum yetkazish xarajati
+  to‘liq jami deb ko‘rsatilmaydi. Rasm tanish va katalog natijalari taxmin bo‘lishi
+  mumkin, shuning uchun manba, qadoq va variantni tekshirish kerak.
+
+Tashkilotga bog‘liq eski ma’lumotlar fizik birlashtirilmagan: har bir yozuvning
+`organization_id`i provenance/foreign-key munosabatlari uchun saqlanadi. Yangi
+yozuvlar ichki storage partition’da yaratiladi; u foydalanuvchi roli emas.
 
 ## Tekshiruv
 
@@ -62,56 +76,19 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Browser testlari o‘z vaqtinchalik bazasi/serverini yaratadi. Production bazasi uchun
-testlarni ishga tushirmang. PostgreSQL test muhiti [testing.md](docs/testing.md) da.
-Playwright yangi dev dependency bo‘lib, foydalanuvchi so‘ragan haqiqiy desktop/mobil
-E2E uchun qo‘shildi; production runtimega kirmaydi. Chromium alohida yuklanadi.
+Playwright alohida vaqtinchalik baza/server ishlatadi; production bazasiga test
+yurgizmang. Standart E2E porti `8138`; band bo‘lsa `SMART_MARKET_BROWSER_PORT=8140`
+kabi bo‘sh port bering. PostgreSQL sinovi va worker tekshiruvlari
+[testing.md](docs/testing.md)da.
 
-## Davom ettirish
+## Production holati
 
-1–3-bosqichlar katalog, private media, dalilli verification, product CSV hamda bounded/as-of price intelligence bilan implement qilindi. 4-bosqich — yagona Import markazi (`/import-center`): CSV/XLSX/PDF/PNG/JPG yuklash, preview + column mapping, duplicate reconciliation, background joblar (lease/idempotency), AI hujjat ajratish (kredensial bo'lmasa aniq `unavailable`) va inson review workflow. Batafsil: [phase-4-import-and-extraction.md](docs/phase-4-import-and-extraction.md).
-AI provayderi hali real kredensial bilan tekshirilmagan; procurement/approval, forecasting, alert/report va ishlab chiqarish infratuzilmasi hali tugamagan. [Roadmap](docs/completion-roadmap.md),
-[continuation](docs/continuation-plan.md), [xavfsizlik](docs/security.md),
-[deploy](docs/deployment.md) va [haqiqiy tayyorlik holati](docs/production-readiness-report.md).
+Mahalliy testlar o‘tishi production tayyorligini anglatmaydi. Haqiqiy SMTP va AI,
+HTTPS staging, persistent worker/scheduler, monitoring, shifrlangan backup/restore,
+load/security test va rollback rehearsal hali alohida release gate. Kalitlarni
+chatga yoki repoga qo‘ymang; `.env` va deploy jarayoni
+[deployment yo‘riqnomasi](docs/deployment.md)ga muvofiq boshqarilsin.
 
-`@types/node` dev dependency browser/config TypeScript fayllarida Node APIlarini
-typecheck qilish uchun qo‘shildi; production runtime dependency emas.
-
-## 2-bosqich imkoniyatlari
-
-/products va /suppliers: tafsilot, edit, archive/restore, filter/sort/pagination.
-Mahsulotda barcode, aliases, variant/parent SKU, kategoriya va qadoq metadata.
-Private image/PDF boshqaruvi va role/tenant himoyasi. Verification scope’lari
-alohida, mustaqil reviewer va saqlangan dalillar bilan. Feedback completed purchase
-reytingi emas; uning eligibility va dispute qoidalari hujjatlashtirilgan.
-Mahsulot CSV importi /catalog/product-imports: preview, mapping, row errors,
-confirm va history; /catalog/products/export formula-safe eksport.
-Parent mahsulotni avval kiriting/import qiling, so‘ng variantlarni parent_sku bilan
-kiriting. JSON aliases/variant_attributes list bo‘lishi kerak.
-
-[2-bosqich tavsifi](docs/phase-2-implementation.md) va
-[jadval/ruxsatlar](docs/database-design.md) amaldagi cheklovlarni tushuntiradi.
-Production readiness hali tasdiqlanmagan.
-
-## 3-bosqich imkoniyatlari
-
-Latest/as-of comparison, source/correction tarixi, alohida price review, UZS base
-va manbali independently approved USD/EUR/RUB rates, exact landed/unit/nominal
-ranking, supplier history/trend va previous-valid price changes. Live rate/OCR/API
-integration ulanmagan. [Hisoblash qoidalari va dalil](docs/phase-3-price-intelligence.md).
-
-## 2026-10-31 sifat sprinti
-
-Mavjud analytics supplier/as-of va personal alert recipient nuqsonlari tuzatildi;
-importlar haqiqiy isolated queue worker bilan tekshiriladi. Barcha biznes fazalari
-tugallangan yoki production-ready deb baholanmaydi. [Sprint dalillari](docs/critical-quality-sprint.md),
-[bildirishnomalar](docs/phase-5-notifications.md), [tahlil](docs/phase-6-analytics.md).
-
-Importlar uchun alohida persistent worker kerak:
-
-```sh
-php artisan queue:work database --queue=imports --sleep=1 --timeout=60 --tries=3
-```
-
-Local log mailer real email yubormaydi. SMTP/live AI, staging/TLS, monitoring,
-backup/restore va load testlar hali tashqi release gate. .env/key o‘zgartirilmagan.
+Joriy tayyorlik dalillari: [production readiness](docs/production-readiness-report.md),
+[operatsion blockerlar](docs/production-operations-sprint.md), va
+[keyingi bosqichlar](docs/completion-roadmap.md).

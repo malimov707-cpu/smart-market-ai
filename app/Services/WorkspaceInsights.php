@@ -20,7 +20,7 @@ class WorkspaceInsights
     {
         abort_unless($user->can('view', $organization), 403);
         $asOf = CarbonImmutable::now();
-        $products = Product::where('organization_id', $organization->id)->whereNull('archived_at');
+        $products = Product::whereIn('organization_id', Organization::allIds())->whereNull('archived_at');
         if ($productId !== null) {
             (clone $products)->findOrFail($productId);
         }
@@ -45,7 +45,7 @@ class WorkspaceInsights
                 'spread' => $best && $complete->count() > 1 ? bcsub($worst['known_total'], $best['known_total'], 2) : null,
                 'warnings' => $best ? $best['warnings'] : $rows->flatMap(fn (array $row): array => $row['warnings'])->unique()->values()->take(4)->all()];
         });
-        $observations = Offer::where('organization_id', $organization->id)->where('observed_at', '<=', $asOf)
+        $observations = Offer::whereIn('organization_id', Organization::allIds())->where('observed_at', '<=', $asOf)
             ->whereRaw(LatestOffers::recordedExpression().' <= ?', [$asOf->format('Y-m-d H:i:s.u')]);
         $daily = (clone $observations)->where('observed_at', '>=', $asOf->startOfDay()->subDays(13))
             ->selectRaw('DATE(observed_at) AS day, COUNT(*) AS total')->groupByRaw('DATE(observed_at)')->pluck('total', 'day');

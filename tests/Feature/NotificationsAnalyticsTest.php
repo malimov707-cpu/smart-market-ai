@@ -9,11 +9,10 @@ use App\Services\ManageAlerts;
 use App\Services\ManageImports;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Mail;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 uses(LazilyRefreshDatabase::class);
 
-it('creates a tenant-scoped alert rule with audit and rejects foreign scope', function () {
+it('creates a global alert rule that can target legacy records from any partition', function () {
     [$user, $org] = marketIdentity('owner');
     $product = Product::factory()->create(['organization_id' => $org->id]);
     app(ManageAlerts::class)->create($user, $org, ['name' => 'Pasayish', 'event_type' => 'price_decrease', 'scope_type' => 'product',
@@ -21,9 +20,9 @@ it('creates a tenant-scoped alert rule with audit and rejects foreign scope', fu
     expect(AlertRule::count())->toBe(1);
     $this->assertDatabaseHas('audit_logs', ['action' => 'alert_rule.created']);
     [$otherUser, $otherOrg] = marketIdentity('owner');
-    expect(fn () => app(ManageAlerts::class)->create($otherUser, $otherOrg, ['name' => 'X', 'event_type' => 'price_decrease',
-        'scope_type' => 'product', 'scope_id' => $product->id, 'threshold_kind' => 'none', 'frequency' => 'instant']))
-        ->toThrow(HttpException::class);
+    app(ManageAlerts::class)->create($otherUser, $otherOrg, ['name' => 'X', 'event_type' => 'price_decrease',
+        'scope_type' => 'product', 'scope_id' => $product->id, 'threshold_kind' => 'none', 'frequency' => 'instant']);
+    expect(AlertRule::count())->toBe(2);
 });
 
 it('dispatches deduplicated notifications respecting scope and threshold', function () {
@@ -80,8 +79,7 @@ it('shows analytics dashboard from real data and exports csv with formula inject
     $response->assertOk();
     $body = $response->streamedContent();
     expect(str_contains($body, '=cmd|test'))->toBeTrue();
-    // tenant isolation: other org user cannot read our analytics rows
+    // Platform administrators see the same system-wide report regardless of legacy workspace selection.
     [$u2, $o2] = marketIdentity('owner');
-    $this->post('/organization', ['organization_id' => $o2->id]);
-    $this->actingAs($u2)->withSession(['organization_id' => $o2->id])->get('/analytics')->assertOk()->assertInertia(fn ($page) => $page->where('stats.offers', 0));
+    $this->actingAs($u2)->withSession(['organization_id' => $o2->id])->get('/analytics')->assertOk()->assertInertia(fn ($page) => $page->where('stats.offers', 1));
 });

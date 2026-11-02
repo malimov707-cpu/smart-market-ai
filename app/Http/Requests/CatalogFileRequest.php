@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Organization;
 use App\Models\Product;
 use App\Models\Supplier;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,7 +14,7 @@ class CatalogFileRequest extends FormRequest
     public function authorize(): bool
     {
         $model = $this->route('product') ? Product::class : Supplier::class;
-        $record = $model::where('organization_id', $this->attributes->get('organization')->id)->findOrFail($this->route('product') ?? $this->route('supplier'));
+        $record = $model::whereIn('organization_id', Organization::allIds())->findOrFail($this->route('product') ?? $this->route('supplier'));
 
         return $this->user()->can('update', $record);
     }

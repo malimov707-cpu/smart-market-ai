@@ -23,7 +23,7 @@ class ProductImportController extends Controller
     {
         Gate::authorize('catalog', $request->attributes->get('organization'));
 
-        return Inertia::render('ProductImports', ['imports' => ProductImport::where('organization_id', $request->attributes->get('organization')->id)->latest('id')->paginate(20, ['id', 'created_at', 'expires_at', 'completed_at', 'summary'])]);
+        return Inertia::render('ProductImports', ['imports' => ProductImport::whereIn('organization_id', Organization::allIds())->latest('id')->paginate(20, ['id', 'created_at', 'expires_at', 'completed_at', 'summary'])]);
     }
 
     public function upload(Request $request): RedirectResponse
@@ -101,7 +101,7 @@ class ProductImportController extends Controller
     public function confirm(Request $request, int $import, ProductCsv $service): RedirectResponse
     {
         $batch = $this->record($request, $import);
-        $result = $service->confirm($request->user(), $request->attributes->get('organization'), $batch);
+        $result = $service->confirm($request->user(), Organization::findOrFail($batch->organization_id), $batch);
 
         return to_route('product-imports.show', $import)->with('success', "{$result['created']} yaratildi, {$result['duplicates']} bir xil takror qayd etildi.");
     }
@@ -110,17 +110,15 @@ class ProductImportController extends Controller
     {
         Gate::authorize('catalog', $request->attributes->get('organization'));
 
-        return ProductImport::where('organization_id', $request->attributes->get('organization')->id)->findOrFail($id);
+        return ProductImport::whereIn('organization_id', Organization::allIds())->findOrFail($id);
     }
 
     public function export(Request $request): StreamedResponse
     {
-        $tenant = $request->attributes->get('organization')->id;
-
-        return response()->streamDownload(function () use ($tenant): void {
+        return response()->streamDownload(function (): void {
             $output = fopen('php://output', 'w');
             fputcsv($output, ProductCsv::COLUMNS, ',', '"', '');
-            foreach (Product::where('organization_id', $tenant)->with('parent:id,sku')->orderBy('id')->lazyById(500) as $product) {
+            foreach (Product::whereIn('organization_id', Organization::allIds())->with('parent:id,sku')->orderBy('id')->lazyById(500) as $product) {
                 $cells = [];
                 foreach (ProductCsv::COLUMNS as $column) {
                     $value = match ($column) {

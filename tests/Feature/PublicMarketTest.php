@@ -1,6 +1,8 @@
 <?php
 
+use App\Services\ConstructionCatalog;
 use App\Services\KorzinkaCatalog;
+use App\Services\StatUzAveragePrices;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
@@ -70,6 +72,10 @@ it('shows source timestamps and filters cached prices without hitting the source
     [$user] = marketIdentity();
     Http::fake(publicCatalogFixture());
     app(KorzinkaCatalog::class)->sync();
+    Cache::forever(StatUzAveragePrices::CACHE_KEY, [
+        'checked_at' => now()->toISOString(), 'stale' => false, 'sync_failed' => false,
+        'partial' => false, 'data_period' => '2026-M09', 'products' => [],
+    ]);
     Http::fake();
     $this->actingAs($user)->get('/market?q=olma')->assertOk()->assertInertia(fn (Assert $page) => $page->component('PublicMarket')
         ->where('market.total', 1)->where('market.products.0.price', '12990.00')->missing('market.products.0.search_text'));
@@ -82,10 +88,67 @@ it('recognizes an image without accepting generated prices as real market eviden
     Http::fake(['https://openrouter.ai/api/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode([
         'name' => 'Olma', 'brand' => null, 'package' => null, 'uncertain' => true, 'search_terms' => ['olma', 'яблоки'], 'price' => 1,
     ])]]]])]);
-    $this->actingAs($user)->postJson('/market/scan', ['image' => UploadedFile::fake()->image('product.jpg', 100, 100)])
+    $this->actingAs($user)->postJson('/market/scan', ['image' => UploadedFile::fake()->image('product.jpg', 500, 1200)])
         ->assertOk()->assertJsonPath('recognition.name', 'Olma')->assertJsonPath('recognition.uncertain', true)->assertJsonMissingPath('recognition.price');
-    Http::assertSent(fn (ClientRequest $request): bool => $request['messages'][2]['content'][1]['type'] === 'image_url'
-        && str_starts_with($request['messages'][2]['content'][1]['image_url']['url'], 'data:image/jpeg;base64,'));
+    Http::assertSent(function (ClientRequest $request): bool {
+        $content = $request['messages'][1]['content'];
+        $instructions = $request['messages'][0]['content'];
+        $encodedImage = substr($content[1]['image_url']['url'], strlen('data:image/jpeg;base64,'));
+        $dimensions = getimagesizefromstring(base64_decode($encodedImage, true));
+
+        return $content[1]['type'] === 'image_url'
+            && str_contains($instructions, 'tabiiy, grammatik jihatdan to‘g‘ri o‘zbek tilida va faqat lotin yozuvida')
+            && str_contains($instructions, 'g‘alati yoki uydirma so‘z ishlatmang')
+            && str_contains($content[0]['text'], 'tushunarli, tabiiy o‘zbek lotin yozuvida')
+            && $dimensions[0] === 427 && $dimensions[1] === 1024
+            && $request['max_tokens'] === 220 && $request['temperature'] === 0.1
+            && $request['provider']['sort'] === 'latency'
+            && ! str_contains(json_encode($request['messages']), 'Current authorized platform snapshot');
+    });
+});
+
+it('does not present a cheapest-price insight when the Asaxiy search was partial', function () {
+    [$user] = marketIdentity();
+    config(['services.openrouter.key' => 'test-only', 'services.openrouter.model' => 'test/vision',
+        'services.asaxiy.catalog_enabled' => true]);
+    $productUrls = array_map(fn (int $number): string => "https://asaxiy.uz/product/airpods-case-{$number}", range(1, 7));
+    $productLocations = implode('', array_map(fn (string $url): string => '<url><loc>'.$url.'</loc></url>', $productUrls));
+    Cache::forever(ConstructionCatalog::key('tezqur'), ['checked_at' => now()->toISOString(), 'products' => [[
+        'id' => 'tezqur:airpods-case', 'name' => 'Apple AirPods Case', 'price' => '300000.00', 'currency' => 'UZS',
+        'source_id' => 'tezqur', 'source_name' => 'TezQur', 'source_url' => 'https://tezqur.uz/product/airpods-case',
+        'image' => null, 'unit_label' => '1 dona · katalogdagi mahsulot', 'category' => 'Elektronika', 'valid_until' => null,
+        'card_required' => false, 'conditions' => '', 'availability' => 'in_stock', 'search_text' => 'airpods case',
+    ]]]);
+    Http::fake([
+        'https://openrouter.ai/api/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode([
+            'name' => 'AirPods case', 'brand' => 'Apple', 'package' => null, 'uncertain' => false, 'search_terms' => ['AirPods case'],
+        ])]]]]),
+        'https://asaxiy.uz/sitemap.xml' => Http::response('<sitemapindex><sitemap><loc>https://asaxiy.uz/sitemap-goods1.xml</loc></sitemap></sitemapindex>'),
+        'https://asaxiy.uz/sitemap-goods1.xml' => Http::response('<urlset>'.$productLocations.'</urlset>'),
+        'https://asaxiy.uz/product/*' => Http::response('<script type="application/ld+json">'.json_encode([
+            '@type' => 'Product', 'name' => 'Apple AirPods Case',
+            'offers' => ['@type' => 'Offer', 'price' => '399000', 'priceCurrency' => 'UZS', 'availability' => 'https://schema.org/InStock'],
+        ], JSON_THROW_ON_ERROR).'</script>'),
+    ]);
+
+    $this->actingAs($user)->postJson('/market/scan', [
+        'image' => UploadedFile::fake()->image('product.jpg'),
+    ])->assertOk()
+        ->assertJsonPath('market.partial', true)
+        ->assertJsonPath('insight', null)
+        ->assertJsonCount(7, 'market.products');
+});
+
+it('does not show a Russian-script product name as Uzbek recognition', function () {
+    [$user] = marketIdentity();
+    config(['services.openrouter.key' => 'test-only', 'services.openrouter.model' => 'test/vision']);
+    Http::fake(['https://openrouter.ai/api/v1/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode([
+        'name' => 'Беспроводные наушники', 'brand' => null, 'package' => null, 'uncertain' => true, 'search_terms' => ['quloqchin', 'наушники'],
+    ])]]]])]);
+
+    $this->actingAs($user)->postJson('/market/scan', ['image' => UploadedFile::fake()->image('product.jpg')])
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'AI mahsulot nomini o‘zbek lotin yozuvida aniq qaytara olmadi. Boshqa surat bilan urinib ko‘ring.');
 });
 
 it('refuses invalid uploads before calling a vision provider', function () {

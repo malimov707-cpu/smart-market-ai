@@ -13,7 +13,6 @@ const pages = [
     { name: 'Import markazi', description: 'CSV, Excel va hujjatlar', href: '/import-center' },
     { name: 'Tahlil va hisobotlar', description: 'Narx harakati va CSV eksport', href: '/analytics' },
     { name: 'Bildirishnomalar', description: 'Muhim bozor hodisalari', href: '/notifications' },
-    { name: 'Tashkilot sozlamalari', description: 'A’zolar va ruxsatlar', href: '/settings' },
     { name: 'Hisob va xavfsizlik', description: 'Profil, parol va sessiyalar', href: '/account' },
 ];
 export default function CommandMenu({ admin = false, hasWorkspace = true }: { admin?: boolean; hasWorkspace?: boolean }) {

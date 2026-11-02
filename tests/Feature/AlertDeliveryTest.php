@@ -31,7 +31,7 @@ it('resolves only explicit active subscribers and deduplicates personal global s
     Mail::assertNothingSent();
 });
 
-it('excludes revoked and deactivated subscribers and enforces owner only preference edits', function () {
+it('excludes inactive and unverified subscribers and enforces owner only preference edits', function () {
     [$owner,$org] = marketIdentity();
     $service = app(ManageAlerts::class);
     $input = ['name' => 'TEST', 'event_type' => 'new_offer', 'scope_type' => 'global', 'threshold_kind' => 'none', 'frequency' => 'instant', 'channels' => ['app']];
@@ -42,7 +42,7 @@ it('excludes revoked and deactivated subscribers and enforces owner only prefere
     $owner->forceFill(['is_active' => false])->save();
     expect($service->dispatch($org, 'new_offer', 'TEST1', 'TEST'))->toBe(0);
     $owner->forceFill(['is_active' => true])->save();
-    $org->users()->detach($owner);
+    $owner->forceFill(['email_verified_at' => null])->save();
     expect($service->dispatch($org, 'new_offer', 'TEST2', 'TEST'))->toBe(0);
 });
 
@@ -85,7 +85,7 @@ it('records SMTP acceptance per subscribed recipient without claiming delivery o
     expect(AppNotification::where('email_status', 'sent')->count())->toBe(2);
 });
 
-it('keeps notification deduplication and recipient resolution isolated across organizations', function () {
+it('keeps notification deduplication and recipient resolution global across legacy organizations', function () {
     [$owner,$a] = marketIdentity();
     $b = Organization::factory()->create();
     $b->users()->attach($owner, ['role' => 'owner']);
@@ -96,5 +96,6 @@ it('keeps notification deduplication and recipient resolution isolated across or
     }
     expect(AppNotification::count())->toBe(2);
     $notification = AppNotification::where('organization_id', $a->id)->sole();
-    $this->actingAs($owner)->withSession(['organization_id' => $b->id])->post('/notifications/'.$notification->id.'/read')->assertNotFound();
+    $this->actingAs($owner)->withSession(['organization_id' => $b->id])->post('/notifications/'.$notification->id.'/read')->assertRedirect();
+    expect($notification->fresh()->read_at)->not->toBeNull();
 });

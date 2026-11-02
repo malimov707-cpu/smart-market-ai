@@ -7,18 +7,22 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CatalogFileController;
-use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ManagedImportController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PriceIntelligenceController;
+use App\Http\Controllers\PriceWatchController;
+use App\Http\Controllers\ProductDetailController;
 use App\Http\Controllers\ProductImportController;
 use App\Http\Controllers\PublicMarketController;
+use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsureEmailVerifiedUnlessAdmin;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\ResolveOrganization;
 use Illuminate\Support\Facades\Route;
@@ -34,10 +38,23 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/register', [AuthController::class, 'show'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+    Route::get('/auth/google', [SocialLoginController::class, 'googleRedirect'])->middleware('throttle:10,1')->name('auth.google');
+    Route::get('/auth/google/callback', [SocialLoginController::class, 'googleCallback'])->middleware('throttle:10,1')->name('auth.google.callback');
+    Route::get('/auth/telegram/callback', [SocialLoginController::class, 'telegramCallback'])->middleware('throttle:10,1')->name('auth.telegram.callback');
 });
+Route::post('/webhook/telegram/{secret}', [TelegramWebhookController::class, 'store'])
+    ->name('telegram.webhook');
+
+Route::get('/sitemap.xml', [SitemapController::class, 'sitemap'])->name('sitemap');
+Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
+
 Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void {
     Route::get('/market', [PublicMarketController::class, 'index'])->name('market');
-    Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware(['verified', 'throttle:ai-assistant'])->name('market.scan');
+    Route::post('/market/watch', [PriceWatchController::class, 'store'])->middleware([EnsureEmailVerifiedUnlessAdmin::class, 'throttle:10,1'])->name('market.watch');
+    Route::post('/market/watch/remove', [PriceWatchController::class, 'destroy'])->middleware('throttle:10,1')->name('market.watch.remove');
+    Route::get('/market/products', [ProductDetailController::class, 'index'])->name('market.products');
+    Route::get('/market/product/{slug}', [ProductDetailController::class, 'show'])->where('slug', '[a-z0-9-]+')->name('market.product');
+    Route::post('/market/scan', [PublicMarketController::class, 'scan'])->middleware([EnsureEmailVerifiedUnlessAdmin::class, 'throttle:ai-assistant'])->name('market.scan');
     Route::get('/verify-email', [VerificationController::class, 'notice'])->name('verification.notice');
     Route::get('/verify-email/{id}/{hash}', [VerificationController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('/email/verification-notification', [VerificationController::class, 'send'])->middleware('throttle:3,1')->name('verification.send');
@@ -45,13 +62,12 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
     Route::post('/account/profile', [AccountController::class, 'profile'])->middleware('throttle:10,1')->name('account.profile');
     Route::post('/account/password', [AccountController::class, 'password'])->middleware('throttle:6,1')->name('account.password');
     Route::post('/account/sessions/revoke', [AccountController::class, 'revokeSessions'])->middleware('throttle:6,1')->name('account.sessions');
+    Route::post('/account/telegram/toggle', [AccountController::class, 'telegramToggle'])->middleware([EnsureEmailVerifiedUnlessAdmin::class, 'throttle:10,1'])->name('account.telegram.toggle');
+    Route::post('/account/telegram/unlink', [AccountController::class, 'telegramUnlink'])->middleware('throttle:6,1')->name('account.telegram.unlink');
     Route::post('/account/sessions/{key}/revoke', [AccountController::class, 'revokeSession'])->middleware('throttle:6,1')->name('account.session');
     Route::post('/account/deactivate', [AccountController::class, 'deactivate'])->middleware('throttle:3,1')->name('account.deactivate');
-    Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('verified')->name('invitations.show');
-    Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware(['verified', 'throttle:6,1'])->name('invitations.accept');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::post('/organization', [AuthController::class, 'switchOrganization'])->middleware(['verified', EnsurePlatformAdmin::class])->name('organization.switch');
-    Route::middleware(['verified', EnsurePlatformAdmin::class, ResolveOrganization::class])->group(function (): void {
+    Route::middleware([EnsureEmailVerifiedUnlessAdmin::class, EnsurePlatformAdmin::class, ResolveOrganization::class])->group(function (): void {
         foreach (['dashboard', 'offers', 'comparison', 'imports', 'ai'] as $page) {
             Route::get('/'.$page, [MarketController::class, 'index'])->name($page);
         }
@@ -93,12 +109,6 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
         Route::post('/suppliers/{supplier}/disputes/{dispute}/resolve', [SupplierController::class, 'resolve'])->name('suppliers.resolve');
         Route::get('/catalog/files/{file}', [CatalogFileController::class, 'download'])->name('catalog.files.download');
         Route::post('/catalog/files/{file}/retire', [CatalogFileController::class, 'retire'])->name('catalog.files.retire');
-        Route::get('/settings', [OrganizationController::class, 'show'])->name('settings');
-        Route::post('/settings', [OrganizationController::class, 'update'])->name('settings.update');
-        Route::post('/settings/invitations', [InvitationController::class, 'store'])->middleware('throttle:10,1')->name('invitations.store');
-        Route::post('/settings/invitations/{invitation}/revoke', [InvitationController::class, 'revoke'])->name('invitations.revoke');
-        Route::post('/settings/members/{member}/role', [OrganizationController::class, 'role'])->name('members.update');
-        Route::post('/settings/members/{member}/remove', [OrganizationController::class, 'remove'])->name('members.remove');
         Route::post('/products', [CatalogController::class, 'store'])->name('products.store');
         Route::post('/products/{product}/archive', [CatalogController::class, 'archive'])->name('products.archive');
         Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
@@ -130,9 +140,7 @@ Route::middleware(['auth', EnsureActiveAccount::class])->group(function (): void
     });
 });
 
-Route::middleware(['auth', EnsureActiveAccount::class, 'verified', EnsurePlatformAdmin::class])->group(function (): void {
+Route::middleware(['auth', EnsureActiveAccount::class, EnsureEmailVerifiedUnlessAdmin::class, EnsurePlatformAdmin::class])->group(function (): void {
     Route::get('/admin', [AdminController::class, 'index'])->name('admin');
-    Route::post('/admin/organizations', [AdminController::class, 'storeOrganization'])->middleware('throttle:10,1')->name('admin.organizations.store');
-    Route::post('/admin/organizations/{organization}', [AdminController::class, 'updateOrganization'])->middleware('throttle:20,1')->name('admin.organizations.update');
     Route::post('/admin/users/{user}', [AdminController::class, 'update'])->middleware('throttle:20,1')->name('admin.users.update');
 });

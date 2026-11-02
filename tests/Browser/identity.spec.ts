@@ -1,6 +1,78 @@
 import { expect, test } from '@playwright/test';
 
-test('owner completes catalog, offer comparison and organization invitation workflow', async ({ page }, info) => {
+test('social sign-in choices appear only on the registration page', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator('.auth-social-grid')).toHaveCount(0);
+
+    await page.goto('/register');
+    const socialChoices = page.locator('.auth-social-grid');
+    await expect(socialChoices).toBeVisible();
+    await expect(socialChoices.locator('> *')).toHaveCount(2);
+});
+
+test('admin overview and user management stay in one organized control panel', async ({ page }) => {
+    await page.goto('/login');
+    const login = page.getByRole('form', { name: 'Hisobga kirish' });
+    await login.getByLabel('Email', { exact: true }).fill('admin-desktop@example.test');
+    await login.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
+    await login.getByRole('button', { name: 'Kirish', exact: true }).click();
+
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.locator('.admin-overview-grid')).toBeVisible();
+    await expect(page.locator('.admin-workspace .stats-grid .stat-card')).toHaveCount(4);
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width < 700) {
+        await page.getByRole('button', { name: 'Admin menyuni ochish' }).click();
+    }
+    await page.getByRole('link', { name: 'Foydalanuvchilar', exact: true }).click();
+    await expect(page).toHaveURL(/tab=users/);
+    await expect(page.locator('.admin-workspace .stats-grid')).toHaveCount(0);
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Bozor katalogi', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Mahsulotlar ish maydoni', exact: true })).toBeVisible();
+});
+
+test('light theme preference carries from authentication into the workspace', async ({ page }, info) => {
+    const platform = info.project.name.startsWith('desktop') ? 'desktop' : 'mobile';
+
+    await page.goto('/register');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.auth-form')).toHaveCSS('background-color', 'rgb(7, 14, 24)');
+    await page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('.auth-form')).toHaveCSS('background-color', 'rgb(248, 250, 255)');
+
+    await page.goto('/login');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('.auth-story h1')).toHaveCSS('color', 'rgb(38, 63, 89)');
+    await expect(page.locator('.auth-feature-list')).toHaveCSS('color', 'rgb(82, 109, 137)');
+    const login = page.getByRole('form', { name: 'Hisobga kirish' });
+    const email = login.getByLabel('Email', { exact: true });
+    await expect(email).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(email).toHaveCSS('color', 'rgb(41, 56, 78)');
+    await page.getByRole('button', { name: 'Qorong‘i mavzuga o‘tish' }).click();
+    await expect(page.locator('.auth-story h1')).toHaveCSS('color', 'rgb(230, 242, 250)');
+    await expect(email).toHaveCSS('background-color', 'rgb(9, 22, 33)');
+    await page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' }).click();
+
+    await email.fill(`${platform}@example.test`);
+    await login.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
+    await page.getByRole('button', { name: 'Kirish', exact: true }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
+    await expect(page.locator('.sidebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(page.getByRole('button', { name: 'Qorong‘i mavzuga o‘tish' })).toBeVisible();
+    await page.getByRole('button', { name: 'Qorong‘i mavzuga o‘tish' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(5, 10, 17)');
+
+    await page.goto('/market');
+    await expect(page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' })).toBeVisible();
+    await page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' }).click();
+    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
+});
+
+test('platform user completes catalog, offer comparison and account workflow', async ({ page }, info) => {
     const platform = info.project.name.startsWith('desktop') ? 'desktop' : 'mobile';
     await page.goto('/login');
     const login = page.getByRole('form', { name: 'Hisobga kirish' });
@@ -35,17 +107,12 @@ test('owner completes catalog, offer comparison and organization invitation work
     await page.getByRole('button', { name: 'Takliflarni solishtirish' }).click();
     await expect(page.getByText('1 008 UZS', { exact: true })).toBeVisible();
     await expect(page.getByText('Yetkazib beruvchi tasdiqlanmagan', { exact: true })).toBeVisible();
-    await page.goto('/settings');
-    await page.getByLabel('Email', { exact: true }).fill(`invited-${platform}@example.test`);
-    await page.getByRole('button', { name: 'Email orqali taklif yuborish' }).click();
-    await expect(page.getByRole('status')).toContainText('mail transportiga topshirildi');
-    await expect(page.getByText(`invited-${platform}@example.test`, { exact: true })).toBeVisible();
     await page.goto('/account');
     await expect(page.getByRole('heading', { name: 'Hisob va xavfsizlik' })).toBeVisible();
     await expect(page.getByText('Joriy sessiya', { exact: true })).toBeVisible();
 });
 
-test('new registrations open the price panel while private workspace remains protected', async ({ page }, info) => {
+test('new registrations open public prices while AI image search remains email protected', async ({ page }, info) => {
     await page.goto('/register');
     await page.getByLabel('Ismingiz', { exact: true }).fill('Browser Registration Test');
     await page.getByLabel('Email', { exact: true }).fill(`register-${info.project.name}@example.test`);
@@ -55,7 +122,7 @@ test('new registrations open the price panel while private workspace remains pro
     await expect(page).toHaveURL(/\/market$/);
     await expect(page.getByRole('heading', { name: 'Toshkent narxlari', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Narxlar panelingiz tayyor', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Suratdan topish', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'AI bilan mahsulotni topish', exact: true })).toBeDisabled();
     await page.getByLabel('Bozor mahsulotini qidirish').fill('sement');
     await page.getByRole('button', { name: 'Narxlarni topish', exact: true }).click();
     await expect(page).toHaveURL(url => url.pathname === '/market' && url.searchParams.get('q') === 'sement');

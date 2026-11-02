@@ -11,6 +11,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,7 +25,18 @@ class AuthController extends Controller
 
     public function show(Request $request): Response
     {
-        return Inertia::render('Auth', ['register' => $request->routeIs('register')]);
+        $telegramState = Str::random(64);
+        $request->session()->put('telegram_login_state', $telegramState);
+
+        return Inertia::render('Auth', [
+            'register' => $request->routeIs('register'),
+            'providers' => [
+                'google' => filled(config('services.google.client_id')) && filled(config('services.google.client_secret')),
+                'telegram' => filled(config('services.telegram.bot_token')) && filled(config('services.telegram.username')),
+                'telegramUsername' => ltrim((string) config('services.telegram.username'), '@'),
+                'telegramCallback' => route('auth.telegram.callback', ['state' => $telegramState]),
+            ],
+        ]);
     }
 
     public function register(RegisterRequest $request): RedirectResponse
@@ -53,12 +65,9 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $request->session()->put('security_version', $request->user()->security_version);
-        $selected = $request->session()->get('organization_id');
-        if ($selected && ! $request->user()->organizations()->whereKey($selected)->exists()) {
-            $request->session()->forget('organization_id');
-        }
+        $request->session()->forget('organization_id');
         SecurityEvent::create(['user_id' => $request->user()->id, 'action' => 'account.login']);
-        if (! $request->user()->hasVerifiedEmail() || ! $request->user()->is_platform_admin) {
+        if (! $request->user()->is_platform_admin) {
             return to_route('market');
         }
 
@@ -73,14 +82,5 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return to_route('login');
-    }
-
-    public function switchOrganization(Request $request): RedirectResponse
-    {
-        $data = $request->validate(['organization_id' => ['required', 'integer']]);
-        $organization = $request->user()->organizations()->findOrFail($data['organization_id']);
-        $request->session()->put('organization_id', $organization->id);
-
-        return to_route('dashboard');
     }
 }

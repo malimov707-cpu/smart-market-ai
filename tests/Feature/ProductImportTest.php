@@ -43,18 +43,18 @@ it('detects exact duplicates and conflicting skus without updating history', fun
     $this->post('/catalog/product-imports/'.$conflict->id.'/confirm')->assertSessionHasErrors('import');
     expect(Product::where('sku', 'EXISTING')->value('name'))->toBe('Original');
 });
-it('escapes formula cells and isolates exports and import batches', function () {
+it('escapes formula cells and exposes exports and import batches globally to administrators', function () {
     [$user,$org] = marketIdentity();
     Product::factory()->create(['organization_id' => $org->id, 'name' => '=HYPERLINK("bad")', 'sku' => 'SAFE']);
     $foreign = Product::factory()->create(['name' => 'FOREIGN-SECRET']);
     $response = $this->actingAs($user)->get('/catalog/products/export')->assertOk()->assertDownload();
     $content = $response->streamedContent();
-    expect($content)->toContain("'=HYPERLINK")->not->toContain('FOREIGN-SECRET');
+    expect($content)->toContain("'=HYPERLINK")->toContain($foreign->name);
     $this->post('/catalog/product-imports', ['file' => UploadedFile::fake()->createWithContent('file.csv', "name,sku,unit\nTest,T,kg\n")]);
     $batch = ProductImport::sole();
     [$other,$otherOrg] = marketIdentity();
-    $this->actingAs($other)->withSession(['organization_id' => $otherOrg->id])->get('/catalog/product-imports/'.$batch->id)->assertNotFound();
-    $this->post('/catalog/product-imports/'.$batch->id.'/confirm')->assertNotFound();
+    $this->actingAs($other)->withSession(['organization_id' => $otherOrg->id])->get('/catalog/product-imports/'.$batch->id)->assertOk();
+    $this->post('/catalog/product-imports/'.$batch->id.'/confirm')->assertSessionHasNoErrors();
 });
 
 it('refuses expired previews and repeated barcodes before any import', function () {

@@ -12,9 +12,9 @@ use Illuminate\Support\Str;
 
 class GrantPlatformAdmin extends Command
 {
-    protected $signature = 'admin:grant {email : Account email} {--create : Create a new verified admin account with a random initial password}';
+    protected $signature = 'admin:grant {email : Account email} {--create : Create a new admin account with a random initial password}';
 
-    protected $description = 'Grant platform administrator access to an existing verified active account';
+    protected $description = 'Grant platform administrator access to an existing active account';
 
     public function handle(): int
     {
@@ -35,15 +35,15 @@ class GrantPlatformAdmin extends Command
             $user = DB::transaction(function () use ($email, $password): User {
                 $user = new User;
                 $user->forceFill(['name' => 'Platform administrator', 'email' => $email, 'password' => $password,
-                    'email_verified_at' => now(), 'is_platform_admin' => true])->save();
+                    'is_platform_admin' => true])->save();
                 SecurityEvent::create(['user_id' => $user->id, 'action' => 'admin.created.cli']);
 
                 return $user;
             });
             $this->line('Initial password: '.$password);
         }
-        if (! $user || ! $user->hasVerifiedEmail() || ! $user->is_active || $user->is_suspended) {
-            $this->error('A verified, active, non-suspended account with this email is required.');
+        if (! $user || ! $user->is_active || $user->is_suspended) {
+            $this->error('An active, non-suspended account with this email is required.');
 
             return self::FAILURE;
         }
