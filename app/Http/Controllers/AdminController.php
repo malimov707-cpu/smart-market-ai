@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Services\AccountSecurity;
+use App\Services\AdminOverview;
 use App\Services\OpenRouterAssistant;
 use App\Services\OperationsCheck;
 use Illuminate\Http\RedirectResponse;
@@ -22,27 +23,37 @@ use Inertia\Response;
 
 class AdminController extends Controller
 {
-    public function index(Request $request): Response
-    {
+    public function index(
+        Request $request,
+        AdminOverview $overviewService,
+        OperationsCheck $operationsCheck,
+        OpenRouterAssistant $assistantService,
+    ): Response {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['all', 'active', 'suspended', 'unverified', 'admins'])],
             'tab' => ['nullable', Rule::in(['overview', 'users', 'security', 'operations'])]]);
         $search = $filters['q'] ?? '';
-        $registrations = User::where('created_at', '>=', now()->startOfDay()->subDays(13))
-            ->selectRaw('DATE(created_at) AS day, COUNT(*) AS total')->groupByRaw('DATE(created_at)')->pluck('total', 'day');
+        $tab = $filters['tab'] ?? 'overview';
+        $overview = $tab === 'overview' ? $overviewService->snapshot() : null;
+        $operations = $tab === 'operations'
+            ? $operationsCheck->dependencies()
+            : ($overview['health']['dependencies'] ?? []);
 
         return Inertia::render('Admin', [
-            'filters' => ['q' => $search, 'status' => $filters['status'] ?? 'all', 'tab' => $filters['tab'] ?? 'overview'],
-            'operations' => app(OperationsCheck::class)->dependencies(),
-            'assistant' => app(OpenRouterAssistant::class)->availability(),
-            'imports' => ImportBatch::query()->latest('id')->limit(8)->get(['id', 'file_name', 'status', 'row_count', 'error_count', 'created_at']),
-            'growth' => collect(range(13, 0))->map(fn (int $days): array => [
-                'day' => now()->subDays($days)->format('Y-m-d'),
-                'users' => (int) ($registrations[now()->subDays($days)->format('Y-m-d')] ?? 0),
-            ]),
+            'filters' => ['q' => $search, 'status' => $filters['status'] ?? 'all', 'tab' => $tab],
+            'operations' => $operations,
+            'assistant' => $tab === 'operations' ? $assistantService->availability() : null,
+            'imports' => $tab === 'operations'
+                ? ImportBatch::query()->latest('id')->limit(8)->get(['id', 'file_name', 'status', 'row_count', 'error_count', 'created_at'])
+                : [],
+            'overviewData' => $overview,
             'stats' => [
-                'users' => User::count(), 'products' => Product::count(), 'offers' => Offer::count(),
-                'suspended' => User::where('is_suspended', true)->count(),
+                ...($overview['stats'] ?? [
+                    'users' => User::query()->count(),
+                    'products' => Product::query()->count(),
+                    'offers' => Offer::query()->count(),
+                ]),
+                'suspended' => User::query()->where('is_suspended', true)->count(),
             ],
             'users' => User::query()->select(['id', 'name', 'email', 'is_active', 'is_suspended', 'is_platform_admin', 'email_verified_at', 'created_at'])
                 ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%')))
@@ -51,7 +62,9 @@ class AdminController extends Controller
                 ->when(($filters['status'] ?? '') === 'unverified', fn ($query) => $query->whereNull('email_verified_at'))
                 ->when(($filters['status'] ?? '') === 'admins', fn ($query) => $query->where('is_platform_admin', true))
                 ->latest('id')->paginate(15, ['*'], 'users_page')->withQueryString(),
-            'events' => SecurityEvent::query()->latest('id')->limit(20)->get(['id', 'user_id', 'action', 'created_at']),
+            'events' => $tab === 'security'
+                ? SecurityEvent::query()->latest('id')->limit(20)->get(['id', 'user_id', 'action', 'created_at'])
+                : [],
         ]);
     }
 

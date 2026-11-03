@@ -43,8 +43,11 @@ Production hali **NOT READY**; gate’larning dalili [hisobotda](production-read
    deduplikatsiya; AI bergan nomzodga confidence va foydalanuvchi tasdig‘i.
 2. **Narx yangiligi:** har bir manbada last-success va stale holati, xato/coverage
    ko‘rsatkichi; qidiruvda eski narxlarni yangisi kabi ko‘rsatmaslik.
-3. **Narx kuzatuvi:** threshold va kanallarni foydalanuvchi boshqarishi; duplicate
-   suppression, quiet hours va delivery natijasi.
+3. **Narx kuzatuvi:** threshold (1/3/5/10%) va ilova/email kanallarini foydalanuvchi
+   boshqarishi, kunlik duplicate suppression hamda umumiy inbox ko‘rinishi
+   lokalda tekshirildi. Email status SMTP qabul qilganini ko‘rsatadi, inbox
+   delivery emas. Telegram, quiet hours, retry va live provider delivery
+   monitoringi hali ochiq.
 4. **Qidiruv sifati:** o‘zbek/ruscha sinonim, typo-tolerant qidiruv, birlik/qadoqni
    normallashtirish va source filterlarning barqarorligi.
 5. **Tezlik/xarajat:** real p50/p95 monitoring; katalog cache invalidation; AI

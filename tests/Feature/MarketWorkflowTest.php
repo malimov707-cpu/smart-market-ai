@@ -57,6 +57,15 @@ it('rate limits repeated login attempts', function () {
     $this->post('/login', ['email' => 'absent@example.test', 'password' => 'wrong'])->assertTooManyRequests();
 });
 
+it('prefers FayzTools as the default organization when present', function () {
+    $fayz = Organization::factory()->create(['name' => 'FayzTools']);
+    $other = Organization::factory()->create(['name' => 'Other']);
+
+    expect(Organization::preferred()?->id)->toBe($fayz->id)
+        ->and(Organization::allIds()->first()->id)->toBe($fayz->id)
+        ->and(Organization::allIds()->pluck('id')->all())->toContain($other->id);
+});
+
 it('lists products from every legacy organization for platform administrators', function () {
     [$user, $organization] = marketIdentity();
     $first = Product::factory()->create(['organization_id' => $organization->id, 'name' => 'A Product']);

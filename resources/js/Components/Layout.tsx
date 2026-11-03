@@ -20,18 +20,20 @@ export default function Layout({ title, children, action, meta }: { title: strin
     const [open, setOpen] = useState(false);
     const current = usePage().url.split('?')[0];
     const isPublicMarket = current === '/market' || current.startsWith('/market/');
+    const experience = isPublicMarket ? 'personal' : 'business';
 
-    return <div className="workspace">
+    return <div className={`workspace ${experience}-workspace`} data-experience={experience}>
         <Head title={title}>{meta?.description ? [{ name: 'description', content: meta.description } as never] : []}</Head>
-        <button className="mobile-menu" onClick={() => setOpen(!open)} aria-label="Menyuni ochish">{open ? <X /> : <Menu />}</button>
-        <aside className={`sidebar ${open ? 'is-open' : ''}`}>
+        <button className="mobile-menu" onClick={() => setOpen(!open)} aria-label={open ? 'Menyuni yopish' : 'Menyuni ochish'} aria-expanded={open} aria-controls="workspace-navigation">{open ? <X /> : <Menu />}</button>
+        {open && <button className="sidebar-scrim" aria-label="Menyuni yopish" onClick={() => setOpen(false)} />}
+        <aside id="workspace-navigation" className={`sidebar ${open ? 'is-open' : ''}`}>
             <Link href={auth.is_platform_admin ? '/dashboard' : '/market'} className="brand"><span className="brand-icon"><Activity size={24} /></span><span>smartmarket<span className="brand-ai">AI</span><small>{isPublicMarket ? 'HAQIQIY NARXLAR. OQILONA XARID.' : 'BOZORNI ANGLANG. OQILONA XARID QILING.'}</small></span></Link>
             {isPublicMarket ? <>
                 <p className="nav-caption">BOZOR VA KATALOG</p>
-                <nav>
-                    <Link href="/market" className={`nav-item ${current === '/market' || current.startsWith('/market/product/') ? 'active' : ''}`}><Sparkles size={19} />Bozor bosh sahifasi</Link>
-                    <Link href="/account" className="nav-item"><Settings2 size={19} />Hisob va xavfsizlik</Link>
-                    {auth.is_platform_admin && <Link href="/admin" className="nav-item"><LayoutDashboard size={19} />Admin panel</Link>}
+                <nav aria-label="Bozor navigatsiyasi">
+                    <Link href="/market" className={`nav-item ${current === '/market' || current.startsWith('/market/product/') ? 'active' : ''}`} onClick={() => setOpen(false)}><Sparkles size={19} />Bozor bosh sahifasi</Link>
+                    <Link href="/account" className="nav-item" onClick={() => setOpen(false)}><Settings2 size={19} />Hisob va xavfsizlik</Link>
+                    {auth.is_platform_admin && <Link href="/admin" className="nav-item" onClick={() => setOpen(false)}><LayoutDashboard size={19} />Admin panel</Link>}
                 </nav>
                 <div className="sidebar-bottom">
                     <div className="help-card"><CircleHelp size={20} /><strong>Narxni qanday topaman?</strong><p>Mahsulotni suratga oling yoki nomini qidiring. Narx, o‘lchov birligi va do‘kon manbasini tekshiring.</p></div>
@@ -39,7 +41,7 @@ export default function Layout({ title, children, action, meta }: { title: strin
                 </div>
             </> : <>
                 <p className="nav-caption">TIZIM BO‘LIMLARI</p>
-                <nav>{navigation.map(item => <Link key={item.href} href={item.href} className={`nav-item ${current === item.href || (item.href === '/import-center' && current.startsWith('/import-center/')) ? 'active' : ''}`} onClick={() => setOpen(false)}><item.icon size={19} />{item.label}</Link>)}</nav>
+                <nav aria-label="Ish maydoni navigatsiyasi">{navigation.map(item => <Link key={item.href} href={item.href} className={`nav-item ${current === item.href || (item.href === '/import-center' && current.startsWith('/import-center/')) ? 'active' : ''}`} onClick={() => setOpen(false)}><item.icon size={19} />{item.label}</Link>)}</nav>
                 <p className="nav-caption">INTELLEKT VA TAHLIL</p>
                 {auth.is_platform_admin && <Link href="/admin" className="nav-item"><Settings2 size={19} />Admin panel</Link>}
                 <Link href="/ai" className={`nav-item ${current === '/ai' ? 'active' : ''}`}><Sparkles size={19} />Xarid intellekti</Link>

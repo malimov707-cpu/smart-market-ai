@@ -16,15 +16,15 @@ export default function AdminShell({ tab, children }: { tab: string; children: R
     const { auth, flash } = usePage<Shared>().props;
     const [open, setOpen] = useState(false);
 
-    return <div className="workspace admin-workspace">
+    return <div className="workspace admin-workspace" data-experience="admin">
         <Head title="Admin panel" />
-        <button className="mobile-menu" aria-label="Admin menyuni ochish" onClick={() => setOpen(value => !value)}>{open ? <X /> : <Menu />}</button>
+        <button className="mobile-menu" aria-label={open ? 'Admin menyuni yopish' : 'Admin menyuni ochish'} aria-expanded={open} aria-controls="admin-navigation" onClick={() => setOpen(value => !value)}>{open ? <X /> : <Menu />}</button>
         {open && <button className="sidebar-scrim" aria-label="Menyuni yopish" onClick={() => setOpen(false)} />}
-        <aside className={`sidebar ${open ? 'is-open' : ''}`}>
+        <aside id="admin-navigation" className={`sidebar ${open ? 'is-open' : ''}`}>
             <Link href="/admin" className="brand"><span className="brand-icon"><Activity /></span><span>smartmarket<span className="brand-ai">AI</span><small>PLATFORM CONTROL CENTER</small></span></Link>
             <div className="admin-role"><span><ShieldCheck size={19} /></span><div><strong>Platforma administratori</strong><small>Butun tizim boshqaruvi</small></div></div>
             <p className="nav-caption">ADMIN BOSHQARUVI</p>
-            <nav>{sections.map(section => <Link key={section.id} href={`/admin?tab=${section.id}`} className={`nav-item ${tab === section.id ? 'active' : ''}`} onClick={() => setOpen(false)}><section.icon size={18} />{section.name}{tab === section.id && <ChevronRight size={14} className="nav-chevron" />}</Link>)}</nav>
+            <nav aria-label="Admin navigatsiyasi">{sections.map(section => <Link key={section.id} href={`/admin?tab=${section.id}`} className={`nav-item ${tab === section.id ? 'active' : ''}`} onClick={() => setOpen(false)}><section.icon size={18} />{section.name}{tab === section.id && <ChevronRight size={14} className="nav-chevron" />}</Link>)}</nav>
             <p className="nav-caption">BOZOR ISH MAYDONI</p>
             <Link href="/dashboard" className="nav-item"><LayoutDashboard size={18} />Mahsulotlar ish maydoni</Link>
             <Link href="/market" className="nav-item"><Activity size={18} />Bozor katalogi</Link>

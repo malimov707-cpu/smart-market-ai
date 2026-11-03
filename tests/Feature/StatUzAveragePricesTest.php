@@ -100,6 +100,7 @@ it('reports an unavailable statistics source without returning fabricated prices
 
 it('allows filtering market results to official monthly averages', function () {
     [$user] = marketIdentity();
+    config(['inertia.ssr.enabled' => false]);
     Http::preventStrayRequests();
     Http::fake(['https://api.siat.stat.uz/media/uploads/sdmx/sdmx_data_3780.json' => Http::response(statUzDatasetFixture())]);
 
@@ -116,6 +117,7 @@ it('allows filtering market results to official monthly averages', function () {
 
 it('shows the dataset coverage when a product search has no official average', function () {
     [$user] = marketIdentity();
+    config(['inertia.ssr.enabled' => false]);
     Http::preventStrayRequests();
     Http::fake(['https://api.siat.stat.uz/media/uploads/sdmx/sdmx_data_3780.json' => Http::response(statUzDatasetFixture())]);
 

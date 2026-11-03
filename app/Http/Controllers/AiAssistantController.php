@@ -23,7 +23,8 @@ class AiAssistantController extends Controller
         if (! $assistant->availability()['configured']) {
             return response()->json(['message' => 'OpenRouter API kaliti hali sozlanmagan.'], 503);
         }
-        $context = $insights->summarize($organization, $request->user(), isset($data['product_id']) ? (int) $data['product_id'] : null, (string) ($data['quantity'] ?? '1'));
+        $context = $insights->summarize($organization, $request->user(), isset($data['product_id']) ? (int) $data['product_id'] : null,
+            (string) ($data['quantity'] ?? '1'), $data['message']);
         $key = OpenRouterAssistant::SESSION_KEY;
         $history = $request->session()->get($key, []);
         try {
@@ -33,9 +34,13 @@ class AiAssistantController extends Controller
         }
         $request->session()->put($key, array_slice([...$history,
             ['role' => 'user', 'content' => $data['message']], ['role' => 'assistant', 'content' => $result['answer']]], -6));
-        $sources = collect($context['decisions'])->whereNotNull('offer_id')->map(fn (array $row): array => [
+        $decisionSources = collect($context['decisions'])->whereNotNull('offer_id')->map(fn (array $row): array => [
             'id' => $row['offer_id'], 'name' => $row['name'], 'url' => route('prices.show', $row['offer_id'], false),
-        ])->values();
+        ]);
+        $catalogSources = collect($context['catalog_matches'] ?? [])->flatMap(fn (array $match): array => collect($match['offers'] ?? [])
+            ->map(fn (array $offer): array => ['id' => $offer['offer_id'], 'name' => $match['name'],
+                'url' => route('prices.show', $offer['offer_id'], false)])->all());
+        $sources = $decisionSources->concat($catalogSources)->unique('id')->values();
 
         return response()->json([...$result, 'sources' => $sources]);
     }

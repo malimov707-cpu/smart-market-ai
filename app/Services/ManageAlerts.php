@@ -130,7 +130,7 @@ class ManageAlerts
         }
         foreach ($createdNotifications as $userId => $notification) {
             if (isset($emailRecipients[$userId])) {
-                $this->attemptEmail($recipients[$userId], $notification);
+                $this->deliverEmailNotification($recipients[$userId], $notification);
             }
         }
 
@@ -138,7 +138,7 @@ class ManageAlerts
     }
 
     /** sent means SMTP transport accepted, never delivered. Local log/array transports are unavailable. */
-    private function attemptEmail(User $recipient, AppNotification $notification): void
+    public function deliverEmailNotification(User $recipient, AppNotification $notification): void
     {
         $mailer = config('mail.default');
         $transport = config('mail.mailers.'.$mailer.'.transport');

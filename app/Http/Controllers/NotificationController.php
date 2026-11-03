@@ -9,6 +9,7 @@ use App\Models\AppNotification;
 use App\Models\AuditLog;
 use App\Models\Organization;
 use App\Services\ManageAlerts;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +22,7 @@ class NotificationController extends Controller
     {
         $organization = $request->attributes->get('organization');
         $unreadOnly = $request->boolean('unread');
-        $notifications = AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)
+        $notifications = $this->notificationsFor($request->user()->id)
             ->when($unreadOnly, fn ($query) => $query->unread())
             ->orderByDesc('id')->paginate(20)->withQueryString()->through(fn (AppNotification $n): array => [
                 'id' => $n->id, 'event_type' => $n->event_type, 'title' => $n->title, 'body' => $n->body,
@@ -67,7 +68,7 @@ class NotificationController extends Controller
     public function read(Request $request, int $notification): RedirectResponse
     {
         $organization = $request->attributes->get('organization');
-        AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)->findOrFail($notification)
+        $this->notificationsFor($request->user()->id)->findOrFail($notification)
             ->forceFill(['read_at' => now()])->save();
 
         return back();
@@ -76,7 +77,7 @@ class NotificationController extends Controller
     public function readAll(Request $request): RedirectResponse
     {
         $organization = $request->attributes->get('organization');
-        AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $request->user()->id)->unread()
+        $this->notificationsFor($request->user()->id)->unread()
             ->update(['read_at' => now()]);
         AuditLog::create(['organization_id' => $organization->id, 'user_id' => $request->user()->id, 'action' => 'notifications.read_all', 'subject_type' => 'user', 'subject_id' => $request->user()->id]);
 
@@ -85,7 +86,13 @@ class NotificationController extends Controller
 
     private function unreadCount(int $userId): int
     {
-        return AppNotification::whereIn('organization_id', Organization::allIds())->where('user_id', $userId)->unread()->count();
+        return $this->notificationsFor($userId)->unread()->count();
+    }
+
+    private function notificationsFor(int $userId): Builder
+    {
+        return AppNotification::where('user_id', $userId)->where(fn (Builder $query) => $query
+            ->whereIn('organization_id', Organization::allIds())->orWhereNull('organization_id'));
     }
 
     private function shape(AlertRule $rule): array

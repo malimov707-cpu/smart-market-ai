@@ -1,9 +1,11 @@
 <?php
 
+use App\Services\ConstructionCatalog;
 use App\Services\KorzinkaCatalog;
 use App\Services\PriceTrendHistory;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(LazilyRefreshDatabase::class);
@@ -39,13 +41,26 @@ it('renders the product detail page with sources trend and savings', function ()
     foreach ([['2026-10-30', '12000'], ['2026-10-31', '12990']] as [$day, $price]) {
         $trends->record('olma', [['price' => $price, 'name' => 'Olma', 'currency' => 'UZS', 'source_name' => 'Korzinka', 'source_url' => 'https://x', 'image' => null, 'unit_label' => '1 kg', 'checked_at' => null]], CarbonImmutable::parse($day, 'UTC'));
     }
+    Cache::forever(ConstructionCatalog::key('tezqur'), ['checked_at' => now()->toISOString(), 'products' => [[
+        'id' => 'tezqur:olma-golden',
+        'name' => 'Olma Golden 1 kg',
+        'price' => '15900.00',
+        'currency' => 'UZS',
+        'source_id' => 'tezqur',
+        'source_name' => 'TezQur',
+        'source_url' => 'https://tezqur.uz/uz/product/olma-golden',
+        'image' => null,
+        'unit_label' => '1 kg',
+        'search_text' => 'olma golden 1 kg',
+        'availability' => 'in_stock',
+    ]]]);
 
     $this->actingAs($user)->get('/market/product/olma')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('ProductDetail')
         ->where('query', 'olma')
         ->has('trend.series', 2)
         ->has('insight.best')
-        ->where('insight.sources', ['Korzinka'])
+        ->where('insight.sources', ['Korzinka', 'TezQur'])
         ->has('related.0'));
 });
 

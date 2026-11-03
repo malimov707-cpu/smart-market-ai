@@ -6,6 +6,7 @@ import ThemeToggle from '../Components/ThemeToggle';
 
 type Providers = {
     google: boolean;
+    googleRedirect: string | null;
     telegram: boolean;
     telegramUsername: string;
     telegramCallback: string;

@@ -97,10 +97,13 @@ it('marks a capped Asaxiy lookup as partial instead of claiming complete cheapes
 
     $market = app(PublicMarketCatalog::class)->search('AirPods case', [], 'general', 'asaxiy', true);
 
+    $asaxiySource = collect($market['sources'])->firstWhere('id', 'asaxiy');
+
     expect($market['products'])->toHaveCount(6)
         ->and($market['partial'])->toBeTrue()
         ->and($market['sync_failed'])->toBeFalse()
-        ->and($market['sources'][1]['partial'])->toBeTrue();
+        ->and($asaxiySource)->toBeArray()
+        ->and($asaxiySource['partial'])->toBeTrue();
     Http::assertSentCount(8);
 });
 

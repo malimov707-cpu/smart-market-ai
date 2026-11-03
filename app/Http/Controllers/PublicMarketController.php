@@ -22,7 +22,7 @@ class PublicMarketController extends Controller
     public function index(Request $request, PublicMarketCatalog $catalog, OpenRouterAssistant $assistant, PriceTrendHistory $trends): Response
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
-            'terms' => ['sometimes', 'array', 'max:5'], 'terms.*' => ['string', 'max:80'],
+            'terms' => ['sometimes', 'array', 'max:20'], 'terms.*' => ['string', 'max:80'],
             'department' => ['nullable', Rule::in(['all', 'grocery', 'construction', 'general'])],
             'source' => ['nullable', Rule::in(['all', 'korzinka', 'tezqur', 'kslux', 'alstroy', 'asaxiy', 'statuz'])]]);
         $query = $filters['q'] ?? '';
@@ -31,6 +31,9 @@ class PublicMarketController extends Controller
         $user = $request->user();
         $verified = $user->hasVerifiedEmail();
         $canUseVerifiedFeatures = $verified || $user->is_platform_admin;
+        $watchSubscription = $query === '' ? null : AppNotification::where('user_id', $user->id)
+            ->where('event_type', 'market_watch_subscribed')
+            ->where('dedupe_key', 'watch-sub:'.AppNotification::priceWatchQueryKey($query))->first();
 
         return Inertia::render('PublicMarket', [
             'verification' => ['verified' => $verified, 'required' => ! $user->is_platform_admin, 'canUse' => $canUseVerifiedFeatures,
@@ -38,8 +41,9 @@ class PublicMarketController extends Controller
                     'department' => $filters['department'] ?? 'all', 'source' => $filters['source'] ?? 'all'],
             'deal' => $deal,
             'trend' => $query === '' ? null : ['series' => $trends->series($query), 'change' => $trends->change($query)],
-            'watch' => $query === '' ? null : ['watching' => AppNotification::where('user_id', $user->id)
-                ->where('event_type', 'market_watch_subscribed')->where('metadata->query', $query)->exists(), 'threshold' => '5'],
+            'watch' => $query === '' ? null : ['watching' => $watchSubscription !== null,
+                'threshold' => (string) data_get($watchSubscription?->metadata, 'change_percent', '5'),
+                'channels' => data_get($watchSubscription?->metadata, 'channels', ['app'])],
             'market' => $catalog->search($query, $searchTerms, $filters['department'] ?? 'all', $filters['source'] ?? 'all', true),
             'assistant' => $assistant->availability()]);
     }
@@ -55,7 +59,7 @@ class PublicMarketController extends Controller
 
         $market = $catalog->search($recognition['name'], $recognition['search_terms'], includeOnDemand: true);
 
-        $insight = $market['sync_failed'] || $market['partial']
+        $insight = $market['stale'] || $market['sync_failed'] || $market['partial']
             ? null
             : $catalog->insight($recognition['name'], $market['products']);
 

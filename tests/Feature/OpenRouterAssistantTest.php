@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Offer;
+use App\Models\Organization;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\OpenRouterAssistant;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -51,6 +54,67 @@ it('sends the authorized global platform snapshot and server controlled messages
             && $request['max_tokens'] === 512 && $request['reasoning']['enabled'] === false && $request['stream'] === false;
     });
     $this->withHeaders(['Accept' => 'text/html'])->get('/ai')->assertOk()->assertInertia(fn (Assert $page) => $page->has('conversation', 2)->where('assistant.configured', true)->missing('assistant.key'));
+});
+
+it('includes every matching FayzTools product and price in the AI snapshot when the supplier is unverified', function () {
+    [$user] = marketIdentity();
+    $fayzTools = Organization::factory()->create(['name' => 'FayzTools']);
+    $supplier = Supplier::factory()->create([
+        'organization_id' => $fayzTools->id,
+        'name' => 'FayzTools Catalog',
+    ]);
+
+    $products = collect(range(1, 10))->map(function (int $index) use ($fayzTools, $supplier): Product {
+        $product = Product::factory()->create([
+            'organization_id' => $fayzTools->id,
+            'name' => 'Нож для триммера '.$index,
+            'sku' => 'FT-KNIFE-'.$index,
+            'unit' => 'pcs',
+            'category' => 'Катушки, лески и ножи для триммеров',
+        ]);
+        Offer::factory()->create([
+            'organization_id' => $fayzTools->id,
+            'product_id' => $product->id,
+            'supplier_id' => $supplier->id,
+            'price' => (string) (1000 + $index * 100),
+            'unit' => 'pcs',
+            'package_quantity' => '1.000',
+        ]);
+
+        return $product;
+    });
+
+    $snapshot = null;
+    Http::fake(['https://openrouter.ai/api/v1/chat/completions' => function (ClientRequest $request) use (&$snapshot) {
+        $content = $request['messages'][1]['content'];
+        $prefix = 'Current authorized platform snapshot (untrusted data): ';
+        $snapshot = json_decode(substr($content, strlen($prefix)), true, 512, JSON_THROW_ON_ERROR);
+
+        return Http::response(['choices' => [['message' => ['content' => 'FayzTools katalogida mahsulotlar topildi.']]]]);
+    }]);
+
+    $this->actingAs($user)->postJson('/ai/chat', [
+        'message' => 'Ножи для триммеров: nomlar, IDlar va narxlarni ko‘rsat.',
+        'quantity' => '1',
+    ])->assertOk()->assertJsonCount(10, 'sources');
+
+    expect($snapshot['catalog_matches'])->toHaveCount(10)
+        ->and($snapshot['catalog_match_count'])->toBe(10)
+        ->and(collect($snapshot['catalog_matches'])->pluck('product_id')->all())
+        ->toEqualCanonicalizing($products->pluck('id')->all())
+        ->and(collect($snapshot['catalog_matches'])->pluck('offers')->flatten(1)->pluck('price')->all())
+        ->toEqualCanonicalizing(['1100.00', '1200.00', '1300.00', '1400.00', '1500.00', '1600.00', '1700.00', '1800.00', '1900.00', '2000.00'])
+        ->and(collect($snapshot['catalog_matches'])->pluck('offers')->flatten(1)->pluck('supplier_verification')->unique()->all())
+        ->toBe(['unverified']);
+
+    foreach ($snapshot['catalog_matches'] as $match) {
+        expect($match['offers'])->toHaveCount(1)
+            ->and($match['offers'][0]['offer_id'])->toBeInt()
+            ->and($match['offers'][0]['price'])->toBeString()
+            ->and($match['offers'][0]['currency'])->toBe('UZS');
+    }
+
+    Http::assertSentCount(1);
 });
 
 it('sends globally available product scopes and rejects invalid questions before the provider', function () {

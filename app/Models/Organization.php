@@ -15,9 +15,14 @@ class Organization extends Model
 
     protected $fillable = ['name', 'city'];
 
+    public static function preferred(): ?self
+    {
+        return static::query()->orderByRaw("CASE WHEN name = 'FayzTools' THEN 0 ELSE 1 END, id")->first();
+    }
+
     public static function allIds(): Builder
     {
-        return static::query()->select('id');
+        return static::query()->select('id')->orderByRaw("CASE WHEN name = 'FayzTools' THEN 0 ELSE 1 END, id");
     }
 
     public function users(): BelongsToMany

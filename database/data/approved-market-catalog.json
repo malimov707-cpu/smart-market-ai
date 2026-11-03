@@ -1,0 +1,839 @@
+{
+    "products": [
+        {
+            "sku": "APP-IPHONE-15",
+            "name": "Apple iPhone 15 128 GB",
+            "brand": "Apple",
+            "category": "Smartphone",
+            "unit": "pcs",
+            "price": 8900000,
+            "aliases": [
+                "iphone 15",
+                "smartphone apple",
+                "apple phone"
+            ]
+        },
+        {
+            "sku": "APP-IPHONE-15-PRO",
+            "name": "Apple iPhone 15 Pro 256 GB",
+            "brand": "Apple",
+            "category": "Smartphone",
+            "unit": "pcs",
+            "price": 12400000,
+            "aliases": [
+                "iphone 15 pro",
+                "apple pro smartphone"
+            ]
+        },
+        {
+            "sku": "SAMS-REF-A15",
+            "name": "Samsung Galaxy A15 128 GB",
+            "brand": "Samsung",
+            "category": "Smartphone",
+            "unit": "pcs",
+            "price": 3450000,
+            "aliases": [
+                "galaxy a15",
+                "samsung a15",
+                "a15 phone"
+            ]
+        },
+        {
+            "sku": "SAMS-S23",
+            "name": "Samsung Galaxy S23 Ultra 512 GB",
+            "brand": "Samsung",
+            "category": "Smartphone",
+            "unit": "pcs",
+            "price": 15900000,
+            "aliases": [
+                "galaxy s23 ultra",
+                "s23 ultra",
+                "samsung smartphone"
+            ]
+        },
+        {
+            "sku": "XIAO-REDMI-13",
+            "name": "Xiaomi Redmi 13 128 GB",
+            "brand": "Xiaomi",
+            "category": "Smartphone",
+            "unit": "pcs",
+            "price": 2880000,
+            "aliases": [
+                "redmi 13",
+                "xiaomi redmi",
+                "phone xiaomi"
+            ]
+        },
+        {
+            "sku": "APP-MACBOOK-AIR",
+            "name": "Apple MacBook Air 13 M2",
+            "brand": "Apple",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 16600000,
+            "aliases": [
+                "macbook air 13",
+                "apple laptop"
+            ]
+        },
+        {
+            "sku": "LENOVO-IDEAPAD",
+            "name": "Lenovo IdeaPad 5 14",
+            "brand": "Lenovo",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 7600000,
+            "aliases": [
+                "ideapad 5",
+                "lenovo laptop"
+            ]
+        },
+        {
+            "sku": "HP-255",
+            "name": "HP 255 G10",
+            "brand": "HP",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 6980000,
+            "aliases": [
+                "hp 255",
+                "hp laptop"
+            ]
+        },
+        {
+            "sku": "ASUS-VIVOBOOK",
+            "name": "ASUS VivoBook 15",
+            "brand": "ASUS",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 8250000,
+            "aliases": [
+                "vivobook 15",
+                "asus laptop"
+            ]
+        },
+        {
+            "sku": "SMART-TV-55",
+            "name": "Samsung Smart TV 55 inch",
+            "brand": "Samsung",
+            "category": "Television",
+            "unit": "pcs",
+            "price": 7850000,
+            "aliases": [
+                "55 inch tv",
+                "smart tv",
+                "samsung television"
+            ]
+        },
+        {
+            "sku": "LG-TV-65",
+            "name": "LG OLED 65 inch",
+            "brand": "LG",
+            "category": "Television",
+            "unit": "pcs",
+            "price": 19200000,
+            "aliases": [
+                "lg oled",
+                "65 inch oled"
+            ]
+        },
+        {
+            "sku": "XIAO-TV-PRO",
+            "name": "Xiaomi TV P1 55 inch",
+            "brand": "Xiaomi",
+            "category": "Television",
+            "unit": "pcs",
+            "price": 6200000,
+            "aliases": [
+                "xiaomi tv",
+                "tv xiaomi",
+                "55 inch smart tv"
+            ]
+        },
+        {
+            "sku": "REF-LED-320",
+            "name": "LG Refrigerator 320 L",
+            "brand": "LG",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 10800000,
+            "aliases": [
+                "refrigerator lg",
+                "muzlatgich lg",
+                "320l fridge"
+            ]
+        },
+        {
+            "sku": "REF-SAMS-380",
+            "name": "Samsung Refrigerator 380 L",
+            "brand": "Samsung",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 11900000,
+            "aliases": [
+                "samsung fridge",
+                "refrigerator samsung"
+            ]
+        },
+        {
+            "sku": "WM-SAMS-9",
+            "name": "Samsung washing machine 9 kg",
+            "brand": "Samsung",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 6650000,
+            "aliases": [
+                "washing machine samsung",
+                "kir yuvish mashinasi"
+            ]
+        },
+        {
+            "sku": "WM-LG-8",
+            "name": "LG washing machine 8 kg",
+            "brand": "LG",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 5980000,
+            "aliases": [
+                "lg washer",
+                "washing machine lg"
+            ]
+        },
+        {
+            "sku": "AIR-COND-12",
+            "name": "Midea air conditioner 12000 BTU",
+            "brand": "Midea",
+            "category": "Cooling",
+            "unit": "pcs",
+            "price": 4550000,
+            "aliases": [
+                "conditioner 12k",
+                "air conditioner",
+                "klimat"
+            ]
+        },
+        {
+            "sku": "AIR-COND-18",
+            "name": "Samsung air conditioner 18000 BTU",
+            "brand": "Samsung",
+            "category": "Cooling",
+            "unit": "pcs",
+            "price": 6100000,
+            "aliases": [
+                "samsung conditioner",
+                "18k air conditioner"
+            ]
+        },
+        {
+            "sku": "VACUUM-XIAO",
+            "name": "Xiaomi vacuum cleaner",
+            "brand": "Xiaomi",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 2450000,
+            "aliases": [
+                "xiaomi vacuum",
+                "robot vacuum",
+                "vacuum cleaner"
+            ]
+        },
+        {
+            "sku": "VACUUM-ROWENTA",
+            "name": "Rowenta vacuum cleaner",
+            "brand": "Rowenta",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 3560000,
+            "aliases": [
+                "rowenta hoover",
+                "vacuum cleaner rowenta"
+            ]
+        },
+        {
+            "sku": "BLENDER-PHILIPS",
+            "name": "Philips blender",
+            "brand": "Philips",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 1290000,
+            "aliases": [
+                "philips smoothie blender",
+                "blender"
+            ]
+        },
+        {
+            "sku": "COFFEE-MACHINE",
+            "name": "DeLonghi coffee machine",
+            "brand": "DeLonghi",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 4990000,
+            "aliases": [
+                "coffee maker",
+                "kofe mashinasi"
+            ]
+        },
+        {
+            "sku": "RICE-COOKER",
+            "name": "Midea rice cooker",
+            "brand": "Midea",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 1480000,
+            "aliases": [
+                "rice cooker",
+                "sharbat blender"
+            ]
+        },
+        {
+            "sku": "AIR-PURIFIER",
+            "name": "Philips air purifier",
+            "brand": "Philips",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 2750000,
+            "aliases": [
+                "air cleaner",
+                "purifier"
+            ]
+        },
+        {
+            "sku": "HEADPHONES-APPLE",
+            "name": "Apple AirPods Pro",
+            "brand": "Apple",
+            "category": "Audio",
+            "unit": "pcs",
+            "price": 4150000,
+            "aliases": [
+                "airpods pro",
+                "wireless headphones",
+                "apple earbuds"
+            ]
+        },
+        {
+            "sku": "HEADPHONES-SAMS",
+            "name": "Samsung Galaxy Buds Pro",
+            "brand": "Samsung",
+            "category": "Audio",
+            "unit": "pcs",
+            "price": 2890000,
+            "aliases": [
+                "galaxy buds",
+                "samsung earbuds"
+            ]
+        },
+        {
+            "sku": "PHONE-CASE",
+            "name": "Transparent phone case",
+            "brand": "Generic",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 180000,
+            "aliases": [
+                "phone case",
+                "telefon gilofi",
+                "silicone case"
+            ]
+        },
+        {
+            "sku": "POWERBANK-20K",
+            "name": "Xiaomi power bank 20000 mAh",
+            "brand": "Xiaomi",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 730000,
+            "aliases": [
+                "power bank",
+                "bank 20000 mah",
+                "phone charger battery"
+            ]
+        },
+        {
+            "sku": "USB-C-DOCK",
+            "name": "USB-C docking station",
+            "brand": "Generic",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 420000,
+            "aliases": [
+                "dock station",
+                "usb c hub",
+                "adapter"
+            ]
+        },
+        {
+            "sku": "MOUSE-LOGITECH",
+            "name": "Logitech wireless mouse",
+            "brand": "Logitech",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 540000,
+            "aliases": [
+                "wireless mouse",
+                "logitech mouse"
+            ]
+        },
+        {
+            "sku": "KEYBOARD-MECH",
+            "name": "Mechanical keyboard",
+            "brand": "Generic",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 925000,
+            "aliases": [
+                "gaming keyboard",
+                "mekanik klaviatura"
+            ]
+        },
+        {
+            "sku": "MONITOR-24",
+            "name": "Dell monitor 24 inch",
+            "brand": "Dell",
+            "category": "Display",
+            "unit": "pcs",
+            "price": 4100000,
+            "aliases": [
+                "24 inch monitor",
+                "dell display"
+            ]
+        },
+        {
+            "sku": "MONITOR-27",
+            "name": "Acer monitor 27 inch",
+            "brand": "Acer",
+            "category": "Display",
+            "unit": "pcs",
+            "price": 5600000,
+            "aliases": [
+                "27 inch monitor",
+                "acer display"
+            ]
+        },
+        {
+            "sku": "CHAIR-ERG",
+            "name": "Ergonomic office chair",
+            "brand": "Generic",
+            "category": "Furniture",
+            "unit": "pcs",
+            "price": 2100000,
+            "aliases": [
+                "office chair",
+                "stul",
+                "ergonomics chair"
+            ]
+        },
+        {
+            "sku": "TABLE-RECT",
+            "name": "Wooden study table",
+            "brand": "Generic",
+            "category": "Furniture",
+            "unit": "pcs",
+            "price": 3100000,
+            "aliases": [
+                "study desk",
+                "stol",
+                "wooden table"
+            ]
+        },
+        {
+            "sku": "SOFA-2",
+            "name": "Two-seater sofa",
+            "brand": "Generic",
+            "category": "Furniture",
+            "unit": "pcs",
+            "price": 8500000,
+            "aliases": [
+                "sofa",
+                "divan",
+                "two seater couch"
+            ]
+        },
+        {
+            "sku": "BED-COVER",
+            "name": "Memory foam mattress",
+            "brand": "Generic",
+            "category": "Furniture",
+            "unit": "pcs",
+            "price": 4200000,
+            "aliases": [
+                "mattress",
+                "matras",
+                "foam bed"
+            ]
+        },
+        {
+            "sku": "LAMP-LED",
+            "name": "LED desk lamp",
+            "brand": "Generic",
+            "category": "Home Decor",
+            "unit": "pcs",
+            "price": 365000,
+            "aliases": [
+                "desk lamp",
+                "led lamp"
+            ]
+        },
+        {
+            "sku": "FAN-CEILING",
+            "name": "Ceiling fan",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 980000,
+            "aliases": [
+                "ceiling fan",
+                "oson fan"
+            ]
+        },
+        {
+            "sku": "HEATER-BATH",
+            "name": "Electric water heater",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 2570000,
+            "aliases": [
+                "geyser",
+                "water heater"
+            ]
+        },
+        {
+            "sku": "CAMERA-4K",
+            "name": "4K action camera",
+            "brand": "Generic",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 3850000,
+            "aliases": [
+                "action camera",
+                "4k camera"
+            ]
+        },
+        {
+            "sku": "PROJECTOR-LED",
+            "name": "HD projector",
+            "brand": "Generic",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 6300000,
+            "aliases": [
+                "projector",
+                "led projector"
+            ]
+        },
+        {
+            "sku": "GAME-CONSOLE",
+            "name": "PlayStation 5",
+            "brand": "Sony",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 14300000,
+            "aliases": [
+                "playstation",
+                "ps5",
+                "game console"
+            ]
+        },
+        {
+            "sku": "NINTENDO-SW",
+            "name": "Nintendo Switch",
+            "brand": "Nintendo",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 7100000,
+            "aliases": [
+                "switch console",
+                "nintendo switch"
+            ]
+        },
+        {
+            "sku": "SMARTWATCH-7",
+            "name": "Apple Watch Series 7",
+            "brand": "Apple",
+            "category": "Wearables",
+            "unit": "pcs",
+            "price": 5860000,
+            "aliases": [
+                "apple watch 7",
+                "smartwatch",
+                "watch series 7"
+            ]
+        },
+        {
+            "sku": "FITBIT",
+            "name": "Fitbit Versa 4",
+            "brand": "Fitbit",
+            "category": "Wearables",
+            "unit": "pcs",
+            "price": 2210000,
+            "aliases": [
+                "fitbit watch",
+                "versa 4"
+            ]
+        },
+        {
+            "sku": "LAPTOP-HP-14",
+            "name": "HP laptop 14",
+            "brand": "HP",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 7420000,
+            "aliases": [
+                "hp 14 laptop",
+                "14 inch laptop"
+            ]
+        },
+        {
+            "sku": "LAPTOP-DELL-15",
+            "name": "Dell Inspiron 15",
+            "brand": "Dell",
+            "category": "Laptop",
+            "unit": "pcs",
+            "price": 7910000,
+            "aliases": [
+                "dell inspiron",
+                "inspiron 15"
+            ]
+        },
+        {
+            "sku": "MICROWAVE",
+            "name": "Microwave oven",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 2390000,
+            "aliases": [
+                "microwave oven",
+                "mikroto‘lqinli pech"
+            ]
+        },
+        {
+            "sku": "OVEN-HOB",
+            "name": "Electric oven",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 4850000,
+            "aliases": [
+                "elektr oven",
+                "oven"
+            ]
+        },
+        {
+            "sku": "PIZZA-OVEN",
+            "name": "Pizza oven",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 3320000,
+            "aliases": [
+                "pizza oven",
+                "pitsali pech"
+            ]
+        },
+        {
+            "sku": "DISHWASHER",
+            "name": "Dishwasher",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 11200000,
+            "aliases": [
+                "dish washer",
+                "idishwasher"
+            ]
+        },
+        {
+            "sku": "KETTLE",
+            "name": "Electric kettle",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 520000,
+            "aliases": [
+                "kettle",
+                "elektr choynak"
+            ]
+        },
+        {
+            "sku": "TOASTER",
+            "name": "Toaster",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 470000,
+            "aliases": [
+                "bread toaster",
+                "toster"
+            ]
+        },
+        {
+            "sku": "AIRFRYER",
+            "name": "Air fryer",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 2860000,
+            "aliases": [
+                "air fryer",
+                "fryer"
+            ]
+        },
+        {
+            "sku": "ROBOT-MOP",
+            "name": "Robot vacuum mop",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 4550000,
+            "aliases": [
+                "robot mop",
+                "vacuum mop"
+            ]
+        },
+        {
+            "sku": "SPEAKER-BLUETOOTH",
+            "name": "Bluetooth speaker",
+            "brand": "Generic",
+            "category": "Audio",
+            "unit": "pcs",
+            "price": 760000,
+            "aliases": [
+                "speaker",
+                "bluetooth loudspeaker"
+            ]
+        },
+        {
+            "sku": "STAND-MIXER",
+            "name": "Stand mixer",
+            "brand": "Generic",
+            "category": "Kitchen Appliance",
+            "unit": "pcs",
+            "price": 1710000,
+            "aliases": [
+                "mixer",
+                "mikser"
+            ]
+        },
+        {
+            "sku": "WATER-FILTER",
+            "name": "Water filter system",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 680000,
+            "aliases": [
+                "water purifier",
+                "filter system"
+            ]
+        },
+        {
+            "sku": "LAMP-BULB",
+            "name": "LED light bulb",
+            "brand": "Generic",
+            "category": "Home Decor",
+            "unit": "pcs",
+            "price": 90000,
+            "aliases": [
+                "light bulb",
+                "led bulb"
+            ]
+        },
+        {
+            "sku": "DEHUMIDIFIER",
+            "name": "Dehumidifier",
+            "brand": "Generic",
+            "category": "Home Appliance",
+            "unit": "pcs",
+            "price": 2680000,
+            "aliases": [
+                "humidifier",
+                "dehumidifier"
+            ]
+        },
+        {
+            "sku": "THERMAL-PRINTER",
+            "name": "Thermal printer",
+            "brand": "Generic",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 1890000,
+            "aliases": [
+                "printer",
+                "thermal printer"
+            ]
+        },
+        {
+            "sku": "WIFI-ROUTER",
+            "name": "Wi-Fi router",
+            "brand": "Generic",
+            "category": "Electronics",
+            "unit": "pcs",
+            "price": 590000,
+            "aliases": [
+                "router",
+                "wifi router"
+            ]
+        },
+        {
+            "sku": "USB-ADAPTER",
+            "name": "USB wall adapter",
+            "brand": "Generic",
+            "category": "Accessories",
+            "unit": "pcs",
+            "price": 150000,
+            "aliases": [
+                "wall charger",
+                "usb adapter"
+            ]
+        },
+        {
+            "sku": "TABLET-IPAD",
+            "name": "Apple iPad 10th gen",
+            "brand": "Apple",
+            "category": "Tablet",
+            "unit": "pcs",
+            "price": 6200000,
+            "aliases": [
+                "ipad 10",
+                "apple tablet"
+            ]
+        },
+        {
+            "sku": "TABLET-SAMS",
+            "name": "Samsung Galaxy Tab A9",
+            "brand": "Samsung",
+            "category": "Tablet",
+            "unit": "pcs",
+            "price": 3510000,
+            "aliases": [
+                "galaxy tab a9",
+                "samsung tablet"
+            ]
+        },
+        {
+            "sku": "SMARTWATCH-9",
+            "name": "Samsung Galaxy Watch 6",
+            "brand": "Samsung",
+            "category": "Wearables",
+            "unit": "pcs",
+            "price": 3180000,
+            "aliases": [
+                "galaxy watch 6",
+                "samsung smartwatch"
+            ]
+        },
+        {
+            "sku": "GARAGE-DOOR",
+            "name": "Garage door opener",
+            "brand": "Generic",
+            "category": "Home Tools",
+            "unit": "pcs",
+            "price": 1400000,
+            "aliases": [
+                "garage door",
+                "door opener"
+            ]
+        }
+    ]
+}

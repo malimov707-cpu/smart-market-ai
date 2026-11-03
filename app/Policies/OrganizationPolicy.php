@@ -31,8 +31,12 @@ class OrganizationPolicy
 
     private function hasRole(User $user, Organization $organization, array $roles): bool
     {
-        return $this->isActiveAndVerified($user) && ($user->is_platform_admin
-            || $user->organizations()->where('organizations.id', $organization->id)->wherePivotIn('role', $roles)->exists());
+        if ($user->is_platform_admin) {
+            return User::query()->whereKey($user->id)->where('is_active', true)->exists();
+        }
+
+        return $this->isActiveAndVerified($user)
+            && $user->organizations()->where('organizations.id', $organization->id)->wherePivotIn('role', $roles)->exists();
     }
 
     private function isActiveAndVerified(User $user): bool

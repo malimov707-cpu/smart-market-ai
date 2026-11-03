@@ -87,7 +87,7 @@ class KorzinkaCatalog
     {
         $snapshot = Cache::get(self::CACHE_KEY);
         $checked = $snapshot['checked_at'] ?? null;
-        $needles = array_values(array_filter(array_map($this->normalize(...), array_slice([$query, ...$alternatives], 0, 6))));
+        $needles = array_values(array_filter(array_map($this->normalize(...), array_slice([$query, ...$alternatives], 0, 20))));
         $products = collect($snapshot['products'] ?? [])->filter(fn (array $row): bool => CarbonImmutable::parse($row['valid_until'])->isFuture());
         if ($needles !== []) {
             $products = $products->filter(function (array $row) use ($needles): bool {

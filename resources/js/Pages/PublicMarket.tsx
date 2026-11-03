@@ -7,14 +7,19 @@ import { timestamp } from '../Components/PriceFacts';
 import { money } from '../types';
 import Sparkline from '../Components/Sparkline';
 
-type PublicPrice = { id: number | string; key: string; source_id: string; source_name: string; checked_at: string | null; availability: string; name: string; price: string; currency: string; unit_label: string; category: string; image: string | null; valid_until: string | null; card_required: boolean; conditions: string; source_url: string; data_period?: string | null };
+type PublicPrice = { id: number | string; key: string; source_id: string; source_name: string; checked_at: string | null; freshness?: 'fresh' | 'stale' | 'expired' | 'historical' | 'unknown'; availability: string; name: string; brand?: string | null; model?: string | null; alias_match?: boolean; variant_match?: boolean; barcode_match?: boolean; package_label?: string | null; offer_count?: number; price: string; currency: string; unit_label: string; category: string; image: string | null; valid_until: string | null; card_required: boolean; conditions: string; source_url: string; data_period?: string | null };
 type MarketSource = { id: string; name: string; department: string; checked_at: string | null; count: number; dataset_count?: number; stale: boolean; sync_failed: boolean; partial?: boolean; enabled?: boolean; interval: number; on_demand?: boolean; official_average?: boolean; data_period?: string | null };
 type Market = { sources: MarketSource[]; checked_at: string | null; stale: boolean; sync_failed: boolean; partial: boolean; total: number; products: PublicPrice[]; coverage: string };
-type Recognition = { name: string; brand: string | null; package: string | null; uncertain: boolean; search_terms: string[] };
+type RecognitionItem = { name: string; brand: string | null; package: string | null; uncertain: boolean; search_terms: string[] };
+type Recognition = RecognitionItem & { items?: RecognitionItem[]; name: string; brand: string | null; package: string | null; uncertain: boolean; search_terms: string[] };
 type Insight = { query: string; best: { name: string; price: string; currency: string; source_name: string; source_url: string; unit_label: string }; worst: { name: string; price: string }; savings: string; savings_percent: number; offers: number; sources: string[] };
 type Trend = { series: { date: string; price: number }[]; change: number | null };
 type Deal = { query: string; price: number; percent: number; previous_average: number };
-type Watch = { watching: boolean; threshold: string };
+type Watch = { watching: boolean; threshold: string; channels: string[] };
+type MatchStrength = 'strong' | 'partial' | 'weak';
+type PackageMatch = 'match' | 'different' | 'unknown';
+type ProductMatchCandidate = { product: PublicPrice; score: number; strength: MatchStrength; matchingTerms: string[]; packageMatch: PackageMatch; brandMismatch: boolean; aliasMatch: boolean; variantMatch: boolean; barcodeMatch: boolean };
+type BasketMatchReview = { key: string; item: RecognitionItem; candidates: ProductMatchCandidate[] };
 export default function PublicMarket({ market, filters, assistant, verification, trend, watch, deal }: { verification: { verified: boolean; required: boolean; canUse: boolean; mailAvailable: boolean }; market: Market; filters: { q: string; terms: string[]; department: string; source: string }; assistant: AssistantConfig; trend: Trend | null; watch: Watch | null; deal: Deal | null }) {
     const catalogGroups = market.sources
         .filter(source => filters.department === 'all' || source.department === filters.department)
@@ -36,7 +41,18 @@ export default function PublicMarket({ market, filters, assistant, verification,
     const [preview, setPreview] = useState('');
     const [recognition, setRecognition] = useState<Recognition | null>(null);
     const [insight, setInsight] = useState<Insight | null>(null);
+    const [matchChoices, setMatchChoices] = useState<Record<string, string>>({});
+    const [confirmedMatches, setConfirmedMatches] = useState<Record<string, string>>({});
     const [error, setError] = useState('');
+    const basketMatches = buildBasketMatches(recognition, market);
+    const basketSummary = buildBasketSummary(basketMatches, confirmedMatches);
+    const basketTotal = basketSummary.reduce((total, item) => total + item.totalMinor, 0n);
+    const firstConfirmedProduct = basketMatches[0]?.candidates.find(candidate =>
+        productKey(candidate.product) === confirmedMatches[basketMatches[0].key])?.product;
+    const insightConfirmed = Boolean(insight && firstConfirmedProduct
+        && firstConfirmedProduct.name.trim().toLocaleLowerCase() === insight.best.name.trim().toLocaleLowerCase()
+        && firstConfirmedProduct.unit_label.trim().toLocaleLowerCase() === insight.best.unit_label.trim().toLocaleLowerCase()
+        && firstConfirmedProduct.source_name === insight.best.source_name);
     useEffect(() => {
         if (!upload.data.image) { setPreview(''); return; }
         const url = URL.createObjectURL(upload.data.image); setPreview(url);
@@ -52,6 +68,8 @@ export default function PublicMarket({ market, filters, assistant, verification,
         upload.setData('image', image);
         setRecognition(null);
         setInsight(null);
+        setMatchChoices({});
+        setConfirmedMatches({});
         setError('');
         setCameraFallback(false);
     }
@@ -103,6 +121,8 @@ export default function PublicMarket({ market, filters, assistant, verification,
     }
     async function scan(event: FormEvent) {
         event.preventDefault(); setError('');
+        setMatchChoices({});
+        setConfirmedMatches({});
         if (!verification.canUse) { setError('Suratdan qidirish uchun avval emailni tasdiqlang.'); return; }
         let handled = false;
         try {
@@ -136,8 +156,55 @@ export default function PublicMarket({ market, filters, assistant, verification,
         <div className="camera-actions"><span><ImagePlus size={14} />Rasm saqlanmaydi; OpenRouter’ga yuboriladi</span><button className="button primary" disabled={!upload.data.image || upload.processing || !assistant.configured || !verification.canUse}>{upload.processing ? <LoaderCircle size={16} className="animate-spin" /> : <Search size={16} />}{upload.processing ? 'AI tahlil qilmoqda…' : 'AI bilan mahsulotni topish'}</button></div>{verification.required && !verification.verified && <small>Suratdan qidirish email tasdiqlangach ochiladi. <Link href="/verify-email">Emailni tasdiqlash</Link></small>}{!assistant.configured && <small className="error" role="status">AI rasm tanishi hozir ishlamaydi: serverda OPENROUTER_API_KEY sozlanmagan. Admin .env fayliga kalit qo‘shib, config cache’ni yangilashi kerak.</small>}</form></section>
         {error && <div className="camera-feedback"><p className="error" role="alert">{error}</p>{cameraFallback && <label htmlFor="camera-capture" className="button secondary"><Camera size={16} />Qurilma kamerasi orqali olish</label>}</div>}
         {deal && <section className="deal-banner" role="status" aria-label="Xarid oynasi"><span className="deal-flame">🔥</span><div><strong>Xarid oynasi: {deal.query} −{deal.percent}%</strong><p>Eng arzon narx o‘rtacha {deal.previous_average.toLocaleString('uz-UZ')} so‘mdan <b>{deal.price.toLocaleString('uz-UZ')} so‘m</b>ga tushdi. Bugun xarid uchun yaxshi kun.</p></div><Link className="button light" href={`/market/product/${deal.query.replace(/\s+/g, '-')}`}>Batafsil</Link></section>}
-        {recognition && insight && <section className="panel insight-banner-deal" aria-label="Narx xulosasi"><div className="insight-deal-head"><span className="badge green">NARX FARQI TOPILDI</span><small>{insight.offers} ta taklif · {insight.sources.join(', ')}</small></div><div className="insight-deal-grid"><div><small>Eng arzon</small><strong>{money(insight.best.price)}<small> so‘m</small></strong><p>{insight.best.name}</p><span className="badge neutral">{insight.best.source_name}</span></div><div><small>Eng qimmat</small><strong>{money(insight.worst.price)}<small> so‘m</small></strong><p>{insight.worst.name}</p></div><div className="insight-deal-savings"><small>Bitta to‘g‘ri tanlov bilan tejaladi</small><strong>{money(insight.savings)}<small> so‘m</small></strong><span className="badge amber">−{insight.savings_percent}%</span></div></div><small className="insight-deal-note">Narxlar manba kataloglaridan olingan; qadoq va birlik farqi bo‘lishi mumkin.</small></section>}
-        {recognition && <section className="recognition-result"><Camera size={23} /><div><small>{recognition.uncertain ? 'AI taxmini · tekshirib ko‘ring' : 'AI aniqlagan mahsulot · tekshirib ko‘ring'}</small><strong>{recognition.name}{recognition.brand ? ` · ${recognition.brand}` : ''}{recognition.package ? ` · ${recognition.package}` : ''}</strong><p>{recognition.uncertain ? 'AI rasmga qarab taxmin qildi. Mahsulot nomi yoki turi noto‘g‘ri bo‘lishi mumkin; kerak bo‘lsa, qidiruv maydonida nomini o‘zgartiring.' : 'Mahsulot nomi, brendi va qadoq hajmi mosligini tekshiring. Narxlar mos mahsulotlardan olinadi.'}</p></div><button aria-label="Tanish natijasini yopish" onClick={() => { setRecognition(null); setInsight(null); }}><X size={17} /></button></section>}
+        {recognition && insight && insightConfirmed && <section className="panel insight-banner-deal" aria-label="Narx xulosasi"><div className="insight-deal-head"><span className="badge green">NARX FARQI TOPILDI</span><small>{insight.offers} ta taklif · {insight.sources.join(', ')}</small></div><div className="insight-deal-grid"><div><small>Eng arzon</small><strong>{money(insight.best.price)}<small> so‘m</small></strong><p>{insight.best.name}</p><span className="badge neutral">{insight.best.source_name}</span></div><div><small>Eng qimmat</small><strong>{money(insight.worst.price)}<small> so‘m</small></strong><p>{insight.worst.name}</p></div><div className="insight-deal-savings"><small>Bitta to‘g‘ri tanlov bilan tejaladi</small><strong>{money(insight.savings)}<small> so‘m</small></strong><span className="badge amber">−{insight.savings_percent}%</span></div></div><small className="insight-deal-note">Narxlar manba kataloglaridan olingan; qadoq va birlik farqi bo‘lishi mumkin.</small></section>}
+        {recognition && <section className="recognition-result"><Camera size={23} /><div><small>{recognition.uncertain ? 'AI taxmini · tekshirib ko‘ring' : 'AI aniqlagan mahsulot · tekshirib ko‘ring'}</small><strong>{recognition.name}{recognition.brand ? ` · ${recognition.brand}` : ''}{recognition.package ? ` · ${recognition.package}` : ''}</strong><p>{recognition.uncertain ? 'AI rasmga qarab taxmin qildi. Mahsulot nomi yoki turi noto‘g‘ri bo‘lishi mumkin; kerak bo‘lsa, qidiruv maydonida nomini o‘zgartiring.' : 'Mahsulot nomi, brendi va qadoq hajmi mosligini tekshiring. Narxlar mos mahsulotlardan olinadi.'}</p></div><button aria-label="Tanish natijasini yopish" onClick={() => { setRecognition(null); setInsight(null); setMatchChoices({}); setConfirmedMatches({}); }}><X size={17} /></button></section>}
+        {recognition && <section className="panel product-match-review" aria-label="Mahsulot mosligini tasdiqlash">
+            <div className="section-header"><div><h2>Katalogdagi moslikni tekshiring</h2><p>Moslik darajasi nom, brend, qadoq va qidiruv atamalaridan hisoblangan; bu AI ehtimolligi emas.</p></div></div>
+            <div className="product-match-list">{basketMatches.map(match => {
+                const selectedKey = matchChoices[match.key] ?? '';
+                const selectedCandidate = match.candidates.find(candidate => productKey(candidate.product) === selectedKey);
+                const confirmedKey = confirmedMatches[match.key];
+                const confirmedCandidate = match.candidates.find(candidate => productKey(candidate.product) === confirmedKey);
+
+                return <article className="product-match-row" key={match.key}>
+                    <div className="product-match-recognition"><small>AI nomzodi</small><strong>{match.item.name}{match.item.brand ? ` · ${match.item.brand}` : ''}{match.item.package ? ` · ${match.item.package}` : ''}</strong></div>
+                    {match.candidates.length > 0 ? <>
+                        <label className="product-match-select"><span>Katalog mahsulotini tanlang</span><select aria-label={`Katalog mosligi: ${match.item.name}`} value={selectedKey} onChange={event => {
+                            const nextKey = event.target.value;
+                            setMatchChoices(current => ({ ...current, [match.key]: nextKey }));
+                            setConfirmedMatches(current => {
+                                const nextConfirmed = { ...current };
+                                delete nextConfirmed[match.key];
+                                return nextConfirmed;
+                            });
+                        }}>
+                            <option value="">Nomzodni tanlang</option>
+                            {match.candidates.map(candidate => <option key={productKey(candidate.product)} value={productKey(candidate.product)}>
+                                {candidate.product.name} · {[candidate.product.unit_label, candidate.product.package_label].filter(Boolean).join(' · ')} · {money(candidate.product.price)} so‘m · {candidate.product.source_name}
+                            </option>)}
+                        </select></label>
+                        {selectedCandidate && <div className={`product-match-evidence match-${selectedCandidate.strength}`}>
+                            <span className={`badge ${selectedCandidate.strength === 'strong' ? 'green' : selectedCandidate.strength === 'partial' ? 'amber' : 'neutral'}`}>
+                                {matchStrengthLabel(selectedCandidate.strength)}
+                            </span>
+                            {selectedCandidate.packageMatch !== 'unknown' && <span className={`badge ${selectedCandidate.packageMatch === 'match' ? 'green' : 'amber'}`}>
+                                {selectedCandidate.packageMatch === 'match' ? 'Qadoq mos' : 'Qadoq farq qiladi'}
+                            </span>}
+                            {selectedCandidate.brandMismatch && <span className="badge amber">Brend farq qiladi</span>}
+                            {selectedCandidate.aliasMatch && <span className="badge neutral">Katalog aliasi mos</span>}
+                            {selectedCandidate.variantMatch && <span className="badge neutral">Variant ma’lumoti mos</span>}
+                            {selectedCandidate.barcodeMatch && <span className="badge green">Barcode mos</span>}
+                            {selectedCandidate.matchingTerms.length > 0 && <small>Mos atamalar: {selectedCandidate.matchingTerms.join(', ')}</small>}
+                        </div>}
+                        <div className="product-match-actions">
+                            <button className="button secondary" type="button" disabled={!selectedCandidate} onClick={() => setConfirmedMatches(current => ({ ...current, [match.key]: selectedKey }))}>Mahsulotni tasdiqlash</button>
+                            {confirmedCandidate && <span className="badge green" role="status">Tasdiqlandi: {confirmedCandidate.product.name}</span>}
+                        </div>
+                    </> : <p className="product-match-empty">Katalog natijalarida matn bo‘yicha mos nomzod topilmadi. Qidiruv nomini o‘zgartirib ko‘ring.</p>}
+                </article>;
+            })}</div>
+        </section>}
+        {basketSummary.length > 0 && <section className="panel basket-summary" aria-label="Savatcha yig‘indisi"><div className="section-header"><div><h2>Savatcha yig‘indisi</h2><p>Faqat siz tasdiqlagan mahsulotlar uchun taxminiy summa</p></div><span className="badge green">{basketSummary.length} mahsulot</span></div>        <div className="basket-summary-list">{basketSummary.map(item => <div className="basket-summary-row" key={`${item.name}-${item.sourceName}`}><div><strong>{item.name}</strong><small>{[item.unitLabel, item.packageLabel].filter(Boolean).join(' · ')}</small></div><div className="basket-summary-meta"><span>{item.quantity > 1 ? `${item.quantity} dona` : '1 dona'}</span><strong>{money(minorUnitsToDecimal(item.totalMinor))} so‘m</strong></div></div>)}</div><div className="basket-summary-total"><span>Umumiy summa</span><strong>{money(minorUnitsToDecimal(basketTotal))} so‘m</strong></div></section>}
         <nav className="market-departments" aria-label="Mahsulot yo‘nalishi">{[{ id: 'all', label: 'Barcha yo‘nalishlar' }, { id: 'grocery', label: 'Oziq-ovqat va kundalik' }, { id: 'construction', label: 'Qurilish mollari' }, { id: 'general', label: 'Elektronika, uy-ro‘zg‘or va boshqalar' }].map(item => <Link href={marketHref(item.id, 'all', filters.q, filters.terms)} key={item.id} className={filters.department === item.id ? 'selected' : ''}>{item.label}</Link>)}</nav>
 <section className="panel market-search-panel"><Form action="/market" method="get" options={{ preserveScroll: true }} className="market-search"><input type="hidden" name="department" value={filters.department} /><input type="hidden" name="source" value={filters.source} /><Search size={21} /><input name="q" aria-label="Bozor mahsulotini qidirish" placeholder="Mahsulot nomi: AirPods, telefon, sut yoki sement…" defaultValue={filters.q} key={filters.q} /><button className="button primary">Narxlarni topish</button></Form><div className="market-suggestions">{(filters.department === 'construction' ? ['Sement', 'Gipsokarton', 'Laminat', 'Germetik', 'Yelim'] : filters.department === 'general' ? ['Quloqchin', 'Telefon', 'Termos', 'Changyutgich', 'Kitob'] : ['Olma', 'Sut', 'Sement', 'Quloqchin', 'Telefon', 'Kitob']).map(name => <Link href={`/market?department=${filters.department}&q=${encodeURIComponent(name)}`} key={name}>{name}</Link>)}<Link href="/market/products" className="product-index-link">Barcha kuzatuvlar →</Link>{(filters.q || filters.source !== 'all') && <Link href={`/market?department=${filters.department}`}>Filtrlarni tozalash</Link>}</div></section>
         <div className="market-source-grid">{market.sources.filter(source => filters.department === 'all' || source.department === filters.department).map(source => {
@@ -198,12 +265,33 @@ export default function PublicMarket({ market, filters, assistant, verification,
         {market.partial && <p className="notice">{market.sync_failed ? 'Ayrim narx manbalari javob bermadi; natijalar to‘liq emas va eng arzon taklifni kafolatlamaydi.' : 'Ayrim manbalarda faqat eng mos mahsulotlar tekshirildi; qidiruv to‘liq emas va eng arzon taklifni kafolatlamaydi.'}</p>}
         <div className="section-header"><div><h2>{filters.q ? `“${filters.q}” uchun topilgan takliflar` : 'Katalogdagi takliflar'}</h2><p>{market.coverage}</p></div></div>
         {trend && <Sparkline series={trend.series} change={trend.change} />}
-        {filters.q && trend && <section className="panel watch-panel" aria-label="Narx kuzatuvi"><div><h2>Bu narxni kuzatish</h2><p>Narx {watch?.threshold ?? '5'}% dan ko‘proq o‘zgarganda sahifada bildirishnoma olasiz. Kundalik avtomatik tekshiruv.</p></div>{verification.canUse && <Form action={watch?.watching ? '/market/watch/remove' : '/market/watch'} method="post" options={{ preserveScroll: true }}>
-            <input type="hidden" name="query" value={filters.q} />{watch?.watching
-                ? <button className="button secondary">Kuzatuvni bekor qilish</button>
-                : <button className="button primary">Narxni kuzatish</button>}
-        </Form>}{!verification.canUse && <Link className="button secondary" href="/verify-email">Kuzatuv uchun emailni tasdiqlang</Link>}</section>}
-        {trend && <section className="panel market-watch" aria-label="Narx kuzatuvi"><div><Bell size={19} /><div><strong>“{filters.q}” narxini kuzatish</strong><p>Eng arzon narx {`±`} o‘zgarganda sahifada bildirishnoma olasiz.</p></div></div><Form action="/market/watch" method="post" options={{ preserveScroll: true }} className="market-watch-form">{({ processing, errors }) => <><input type="hidden" name="query" value={filters.q} /><select name="change_percent" aria-label="O‘zgarish chegarasi" defaultValue="5"><option value="3">3% dan katta</option><option value="5">5% dan katta</option><option value="10">10% dan katta</option></select><button className="button secondary" disabled={processing}>{processing ? 'Saqlanmoqda…' : 'Kuzatuvga olish'}</button>{Object.values(errors).map(err => <p className="error" role="alert" key={err}>{err}</p>)}</>}</Form></section>}
+        {filters.q && trend && <section className="panel market-watch" aria-label="Narx kuzatuvi">
+            <div className="market-watch-description"><Bell size={19} /><div>
+                <strong>“{filters.q}” narxini kuzatish</strong>
+                <p>{watch?.watching ? `${watch.threshold}% dan katta o‘zgarish` : 'Tanlangan chegaradan katta o‘zgarish'} bo‘lsa, kuniga bir marta ilova ichida bildirishnoma olasiz. Email ixtiyoriy; SMTP qabul qilishi inboxga yetkazilganini tasdiqlamaydi.</p>
+            </div></div>
+            {verification.canUse ? <div className="market-watch-actions">
+                <Form action="/market/watch" method="post" options={{ preserveScroll: true }} className="market-watch-form">
+                    {({ processing, errors }) => <>
+                        <input type="hidden" name="query" value={filters.q} />
+                        <label>O‘zgarish chegarasi<select key={`${filters.q}:${watch?.watching}:${watch?.threshold ?? '5'}`} name="change_percent" aria-label="Narx o‘zgarishi chegarasi" defaultValue={watch?.threshold ?? '5'}>
+                            <option value="1">1% dan katta</option><option value="3">3% dan katta</option>
+                            <option value="5">5% dan katta</option><option value="10">10% dan katta</option>
+                        </select></label>
+                        <label>Email xabari<select key={`${filters.q}:${watch?.watching}:${watch?.channels.includes('email')}`} name="email" aria-label="Narx kuzatuvi emaili" defaultValue={watch?.channels.includes('email') ? '1' : '0'}>
+                            <option value="0">Faqat ilova ichida</option>
+                            <option value="1" disabled={!verification.verified}>Ilova va email{verification.verified ? '' : ' (email tasdiqlang)'}</option>
+                        </select></label>
+                        <button className="button primary" disabled={processing}>{processing ? 'Saqlanmoqda…' : watch?.watching ? 'Chegarani saqlash' : 'Kuzatuvga olish'}</button>
+                        {Object.values(errors).map(error => <p className="error" role="alert" key={error}>{error}</p>)}
+                    </>}
+                </Form>
+                {watch?.watching && <Form action="/market/watch/remove" method="post" options={{ preserveScroll: true }}>
+                    <input type="hidden" name="query" value={filters.q} />
+                    <button className="button secondary">Kuzatuvni bekor qilish</button>
+                </Form>}
+            </div> : <Link className="button secondary" href="/verify-email">Kuzatuv uchun emailni tasdiqlang</Link>}
+        </section>}
         <div className="market-catalog-list">
             {catalogGroups.map(source => <section className="market-catalog-group" key={source.id} aria-labelledby={`catalog-${source.id}`}>
                 <header className="market-catalog-heading">
@@ -211,11 +299,11 @@ export default function PublicMarket({ market, filters, assistant, verification,
                     <div><h3 id={`catalog-${source.id}`}>{source.name} katalogi</h3><p>{source.products.length} ta mos mahsulot</p></div>
                     {filters.source !== source.id && <Link className="market-catalog-all" href={marketHref(source.department, source.id, filters.q, filters.terms)}>Faqat {source.name} <ArrowUpRight size={14} /></Link>}
                 </header>
-                <div className="public-price-grid">{source.products.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insight} />)}</div>
+                <div className="public-price-grid">{source.products.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insightConfirmed ? insight : null} />)}</div>
             </section>)}
             {uncategorizedProducts.length > 0 && <section className="market-catalog-group" aria-labelledby="catalog-other">
                 <header className="market-catalog-heading"><div className="market-catalog-icon"><Store size={18} /></div><div><h3 id="catalog-other">Boshqa manbalar</h3><p>{uncategorizedProducts.length} ta mahsulot</p></div></header>
-                <div className="public-price-grid">{uncategorizedProducts.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insight} />)}</div>
+                <div className="public-price-grid">{uncategorizedProducts.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insightConfirmed ? insight : null} />)}</div>
             </section>}
         </div>
         {!market.products.length && <section className="panel intelligence-empty"><Search size={30} /><h2>{market.checked_at ? 'Bu qidiruv uchun katalogda mos taklif topilmadi.' : 'Tanlangan manbaning katalogi yuklanishi kutilmoqda.'}</h2><p>{market.checked_at ? 'Bu mahsulot bozorda yo‘q degani emas. Umumiyroq nom bilan qidiring; katalog barcha assortimentni qamramaydi.' : 'Administrator market:sync orqali manbani yangilashi mumkin.'}</p>{market.sources.some(source => source.id === 'asaxiy' && source.enabled === false) && <p className="notice">AI suratdagi buyumni nomlaydi, lekin hozircha umumiy mahsulotlar uchun faol sotuvchi katalogi ulanmagan. Asaxiy katalogi foydalanish shartlari tasdiqlanmagani uchun o‘chiq; shu sabab telefon g‘ilofi, mebel kabi buyumlarga ishonchli sotuvchi narxi chiqmasligi mumkin.</p>}</section>}
@@ -242,18 +330,212 @@ function PublicPriceCard({ product, insight }: { product: PublicPrice; insight: 
         </div>
         <div className="public-product-body">
             <small>{product.category}</small>
+            <span className={`badge freshness-badge ${freshnessTone(product.freshness)}`}>{freshnessLabel(product.freshness, product.data_period)}</span>
             <h3>{product.name}</h3>
+            {(product.brand || product.model) && <p className="public-unit">{[product.brand, product.model].filter(Boolean).join(' · ')}</p>}
             <p className="public-unit">{product.unit_label}</p>
+            {product.package_label && <p className="public-unit">Qadoq: {product.package_label}</p>}
+            {typeof product.offer_count === 'number' && <small>{product.offer_count} ta taklif</small>}
             <strong className="public-product-price">{money(product.price)}<small> so‘m</small></strong>
             {product.card_required && <p className="public-condition">Korzinka kartasi talab etiladi</p>}
             {product.conditions && <p className="public-condition">{product.conditions}</p>}
             {product.availability === 'out_of_stock' && <span className="badge amber product-stock">Manbada mavjud emas</span>}
             {product.availability === 'in_stock' && <span className="badge green product-stock">Manbada mavjud</span>}
-            <p className="public-expiry">{product.data_period ? `Kuzatuv davri: ${marketPeriod(product.data_period)}` : product.valid_until ? `Amal qiladi: ${timestamp(product.valid_until)}` : 'Narxning amal muddati manbada ko‘rsatilmagan'}</p>
-            {product.checked_at && <p className="public-expiry">Tekshirildi: {timestamp(product.checked_at)}</p>}
+            <p className="public-expiry">{product.data_period ? `Kuzatuv davri: ${marketPeriod(product.data_period)}` : product.valid_until ? `Taklif muddati: ${timestamp(product.valid_until)}` : 'Narxning amal muddati manbada ko‘rsatilmagan'}</p>
+            {product.checked_at && <p className="public-expiry">Narx kuzatuvi: {timestamp(product.checked_at)}</p>}
             <a className="decision-link" href={product.source_url} target="_blank" rel="noreferrer">{product.source_id === 'statuz' ? 'Rasmiy statistik manba' : 'Sotuvchida tekshirish'} <ArrowUpRight size={15} /></a>
         </div>
     </article>;
+}
+
+function freshnessLabel(freshness: PublicPrice['freshness'], dataPeriod?: string | null): string {
+    if (freshness === 'historical') return `Rasmiy o‘rtacha · ${marketPeriod(dataPeriod)}`;
+    if (freshness === 'expired') return 'Taklif muddati tugagan';
+    if (freshness === 'stale') return 'Eskirgan narx · qayta tekshiring';
+    if (freshness === 'fresh') return 'Yaqinda tekshirilgan';
+
+    return 'Kuzatuv vaqti noma’lum';
+}
+
+function freshnessTone(freshness: PublicPrice['freshness']): string {
+    if (freshness === 'fresh') return 'green';
+    if (freshness === 'stale' || freshness === 'expired') return 'amber';
+
+    return 'neutral';
+}
+
+type BasketSummaryRow = { name: string; unitLabel: string; packageLabel: string | null; quantity: number; totalMinor: bigint; sourceName: string };
+
+function buildBasketMatches(recognition: Recognition | null, market: Market): BasketMatchReview[] {
+    if (!recognition) return [];
+    const candidates = recognition.items && recognition.items.length > 0 ? recognition.items : [recognition];
+    return candidates.map((item, index) => {
+        const key = `recognized-${index}`;
+        const rankedCandidates = market.products.map(product => scoreProductMatch(item, product))
+            .filter((candidate): candidate is ProductMatchCandidate => candidate !== null)
+            .sort((left, right) => right.score - left.score)
+            .slice(0, 5);
+
+        return { key, item, candidates: rankedCandidates };
+    });
+}
+
+function buildBasketSummary(matches: BasketMatchReview[], confirmedMatches: Record<string, string>): BasketSummaryRow[] {
+    const rows: BasketSummaryRow[] = [];
+
+    for (const match of matches) {
+        const product = match.candidates.find(candidate => productKey(candidate.product) === confirmedMatches[match.key])?.product;
+        if (!product) continue;
+        const quantity = parseBasketQuantity(product.unit_label);
+        const totalMinor = multiplyMoney(product.price, quantity.decimal);
+        if (totalMinor === null) continue;
+        rows.push({
+            name: product.name,
+            unitLabel: product.unit_label,
+            packageLabel: product.package_label ?? null,
+            quantity: quantity.value,
+            totalMinor,
+            sourceName: product.source_name,
+        });
+    }
+
+    return rows;
+}
+
+function scoreProductMatch(item: RecognitionItem, product: PublicPrice): ProductMatchCandidate | null {
+    const productIdentity = normalizeMatchText([product.name, product.brand, product.model].filter(Boolean).join(' '));
+    const productText = normalizeMatchText([productIdentity, product.category, product.unit_label].join(' '));
+    const itemName = normalizeMatchText(item.name);
+    const terms = Array.from(new Set([item.name, item.brand ?? '', ...item.search_terms]
+        .map(normalizeMatchText).filter(term => term.length >= 2)));
+    const matchingTerms = terms.filter(term => productText.includes(term));
+    const exactNameMatch = itemName !== '' && productIdentity.includes(itemName);
+    const itemTokens = new Set(itemName.split(' ').filter(token => token.length >= 2));
+    const productTokens = new Set(productIdentity.split(' ').filter(token => token.length >= 2));
+    const matchingTokenCount = Array.from(itemTokens).filter(token => productTokens.has(token)).length;
+    const normalizedBrand = normalizeMatchText(item.brand ?? '');
+    const productBrand = normalizeMatchText(product.brand ?? '');
+    const brandMismatch = normalizedBrand !== '' && productBrand !== '' && normalizedBrand !== productBrand;
+    const brandMatch = normalizedBrand !== '' && (productBrand === normalizedBrand || productIdentity.includes(normalizedBrand));
+    const aliasMatch = product.alias_match === true;
+    const variantMatch = product.variant_match === true;
+    const barcodeMatch = product.barcode_match === true;
+    const packageMatch = comparePackage(item.package, [product.name, product.model, product.unit_label, product.package_label].filter(Boolean).join(' '));
+    let score = (exactNameMatch ? 8 : 0) + Math.min(matchingTerms.length, 3) * 2 + Math.min(matchingTokenCount, 3);
+    if (brandMatch) score += 3;
+    if (brandMismatch) score -= 5;
+    if (packageMatch === 'match') score += 3;
+    if (packageMatch === 'different') score -= 4;
+    if (aliasMatch) score += 3;
+    if (variantMatch) score += 2;
+    if (barcodeMatch) score += 12;
+    if (score <= 0) return null;
+
+    const strength: MatchStrength = brandMismatch || packageMatch === 'different'
+        ? 'weak'
+        : barcodeMatch || exactNameMatch || score >= 10
+            ? 'strong'
+            : score >= 5 ? 'partial' : 'weak';
+
+    return { product, score, strength, matchingTerms, packageMatch, brandMismatch, aliasMatch, variantMatch, barcodeMatch };
+}
+
+function normalizeMatchText(value: string): string {
+    return value.normalize('NFKC').toLocaleLowerCase('uz-UZ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function comparePackage(recognizedPackage: string | null, productText: string): PackageMatch {
+    if (!recognizedPackage?.trim()) return 'unknown';
+    const target = normalizeVariantText(recognizedPackage);
+    const product = normalizeVariantText(productText);
+    if (target === '') return 'unknown';
+    if (product.includes(target)) return 'match';
+
+    const targetVariants = target.match(/\b\d+(?:[.,]\d+)?\s?(?:kg|g|mg|l|ml|gb|tb|mb|mah|inch|dona|ta|sht)\b/g) ?? [];
+    const productVariants = product.match(/\b\d+(?:[.,]\d+)?\s?(?:kg|g|mg|l|ml|gb|tb|mb|mah|inch|dona|ta|sht)\b/g) ?? [];
+
+    return targetVariants.length > 0 && productVariants.length > 0 ? 'different' : 'unknown';
+}
+
+function normalizeVariantText(value: string): string {
+    return normalizeMatchText(value)
+        .replace(/\b(?:litr|liter|litre|liters|litres)\b/g, 'l')
+        .replace(/\b(?:kilogram|kilograms)\b/g, 'kg')
+        .replace(/\b(?:gram|grams)\b/g, 'g')
+        .replace(/\b(?:gigabyte|gigabytes)\b/g, 'gb')
+        .replace(/\b(?:terabyte|terabytes)\b/g, 'tb')
+        .replace(/\s+/g, ' ');
+}
+
+function matchStrengthLabel(strength: MatchStrength): string {
+    return strength === 'strong' ? 'Kuchli matn mosligi'
+        : strength === 'partial' ? 'Qisman matn mosligi' : 'Zaif matn mosligi';
+}
+
+function productKey(product: PublicPrice): string {
+    return String(product.key ?? product.id);
+}
+
+function parseBasketQuantity(unitLabel: string): { value: number; decimal: string } {
+    const lowered = unitLabel.toLocaleLowerCase();
+    if (/(dona|ta|sht|qut|paket|pachka|karton)/.test(lowered)) {
+        const match = lowered.match(/(\d+(?:[.,]\d+)?)/);
+        if (match) {
+            const decimal = match[1].replace(',', '.');
+            const value = Number.parseFloat(decimal);
+            if (Number.isFinite(value) && value > 0) {
+                return { value, decimal };
+            }
+        }
+    }
+
+    return { value: 1, decimal: '1' };
+}
+
+function multiplyMoney(price: string, quantity: string): bigint | null {
+    const priceDecimal = parseDecimal(price);
+    const quantityDecimal = parseDecimal(quantity);
+    if (priceDecimal === null || quantityDecimal === null) {
+        return null;
+    }
+
+    return toMinorUnits(
+        priceDecimal.coefficient * quantityDecimal.coefficient,
+        priceDecimal.scale + quantityDecimal.scale,
+    );
+}
+
+function parseDecimal(value: string): { coefficient: bigint; scale: number } | null {
+    const match = value.trim().match(/^(-?)(\d+)(?:[.,](\d+))?$/);
+    if (!match) {
+        return null;
+    }
+
+    const fraction = match[3] ?? '';
+
+    return {
+        coefficient: BigInt(`${match[1]}${match[2]}${fraction}`),
+        scale: fraction.length,
+    };
+}
+
+function toMinorUnits(coefficient: bigint, scale: number): bigint {
+    if (scale <= 2) {
+        return coefficient * 10n ** BigInt(2 - scale);
+    }
+
+    const divisor = 10n ** BigInt(scale - 2);
+    const sign = coefficient < 0n ? -1n : 1n;
+    const absolute = coefficient < 0n ? -coefficient : coefficient;
+
+    return sign * ((absolute + divisor / 2n) / divisor);
+}
+
+function minorUnitsToDecimal(value: bigint): string {
+    const sign = value < 0n ? '-' : '';
+    const absolute = value < 0n ? -value : value;
+
+    return `${sign}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, '0')}`;
 }
 
 function marketHref(department: string, source: string, query: string, terms: string[]): string {

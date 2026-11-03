@@ -19,7 +19,11 @@ test('admin overview and user management stay in one organized control panel', a
 
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.locator('.admin-overview-grid')).toBeVisible();
-    await expect(page.locator('.admin-workspace .stats-grid .stat-card')).toHaveCount(4);
+    await expect(page.locator('.admin-workspace .stats-grid .stat-card')).toHaveCount(14);
+    await expect(page.getByRole('heading', { name: 'Yangi foydalanuvchilar', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Yangi tashkilotlar', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Yangi mahsulotlar', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Manbalar holati', exact: true })).toBeVisible();
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 700) {
         await page.getByRole('button', { name: 'Admin menyuni ochish' }).click();
@@ -59,8 +63,8 @@ test('light theme preference carries from authentication into the workspace', as
     await login.getByLabel('Parol', { exact: true }).fill('BrowserPassword123456');
     await page.getByRole('button', { name: 'Kirish', exact: true }).click();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
-    await expect(page.locator('.sidebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 243, 239)');
+    await expect(page.locator('.sidebar')).toHaveCSS('background-color', 'rgb(255, 254, 251)');
     await expect(page.getByRole('button', { name: 'Qorong‘i mavzuga o‘tish' })).toBeVisible();
     await page.getByRole('button', { name: 'Qorong‘i mavzuga o‘tish' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -69,7 +73,7 @@ test('light theme preference carries from authentication into the workspace', as
     await page.goto('/market');
     await expect(page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' })).toBeVisible();
     await page.getByRole('button', { name: 'Yorug‘ mavzuga o‘tish' }).click();
-    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 247, 251)');
+    await expect(page.locator('.workspace')).toHaveCSS('background-color', 'rgb(244, 243, 239)');
 });
 
 test('platform user completes catalog, offer comparison and account workflow', async ({ page }, info) => {

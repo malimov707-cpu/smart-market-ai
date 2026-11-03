@@ -13,7 +13,7 @@ class ResolveOrganization
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $organization = Organization::query()->orderBy('id')->first()
+        $organization = Organization::preferred() ?? Organization::query()->orderBy('id')->first()
             ?? Organization::query()->create(['name' => 'Platform storage']);
         $request->session()->put('organization_id', $organization->id);
         $request->attributes->set('organization', $organization);

@@ -35,7 +35,7 @@ class SocialLoginController extends Controller
 
         return redirect()->away('https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query([
             'client_id' => $clientId,
-            'redirect_uri' => route('auth.google.callback'),
+            'redirect_uri' => $this->googleRedirectUri($request),
             'response_type' => 'code',
             'scope' => 'openid email profile',
             'state' => $state,
@@ -64,7 +64,7 @@ class SocialLoginController extends Controller
                     'code' => $code,
                     'code_verifier' => $verifier,
                     'grant_type' => 'authorization_code',
-                    'redirect_uri' => route('auth.google.callback'),
+                    'redirect_uri' => $this->googleRedirectUri($request),
                 ]);
             if (! $tokenResponse->successful() || ! is_string($tokenResponse->json('access_token'))) {
                 Log::warning('social.google_token_exchange_failed', ['status' => $tokenResponse->status()]);
@@ -199,6 +199,26 @@ class SocialLoginController extends Controller
         }
 
         return $this->authenticate($request, $user, 'account.login_telegram');
+    }
+
+    private function googleRedirectUri(Request $request): string
+    {
+        $configured = trim((string) config('services.google.redirect'));
+        $currentHost = $request->getSchemeAndHttpHost();
+        $currentCallback = $currentHost.'/auth/google/callback';
+
+        if ($configured === '') {
+            return $currentCallback;
+        }
+
+        $requestHost = parse_url($currentCallback, PHP_URL_HOST);
+        $configHost = parse_url($configured, PHP_URL_HOST);
+
+        if ($requestHost !== null && $configHost !== null && $requestHost === $configHost) {
+            return $configured;
+        }
+
+        return $currentCallback;
     }
 
     private function authenticate(Request $request, User $user, string $action): RedirectResponse

@@ -32,6 +32,7 @@ class AuthController extends Controller
             'register' => $request->routeIs('register'),
             'providers' => [
                 'google' => filled(config('services.google.client_id')) && filled(config('services.google.client_secret')),
+                'googleRedirect' => null,
                 'telegram' => filled(config('services.telegram.bot_token')) && filled(config('services.telegram.username')),
                 'telegramUsername' => ltrim((string) config('services.telegram.username'), '@'),
                 'telegramCallback' => route('auth.telegram.callback', ['state' => $telegramState]),

@@ -23,10 +23,11 @@ beforeEach(function () {
 
 it('provides social authentication settings to both authentication pages', function () {
     $this->get('/register')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth')
-        ->where('register', true)->where('providers.google', true)->where('providers.telegram', true)
-        ->where('providers.telegramUsername', 'smart_market_aibot'));
+        ->where('register', true)->where('providers.google', true)->where('providers.googleRedirect', null)
+        ->where('providers.telegram', true)->where('providers.telegramUsername', 'smart_market_aibot'));
     $this->get('/login')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth')
-        ->where('register', false)->where('providers.google', true)->where('providers.telegram', true));
+        ->where('register', false)->where('providers.google', true)->where('providers.googleRedirect', null)
+        ->where('providers.telegram', true));
 });
 
 it('registers and signs in a Google account only after Google verifies its email', function () {

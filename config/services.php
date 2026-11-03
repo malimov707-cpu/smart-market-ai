@@ -30,10 +30,11 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
     'asaxiy' => [
-        'catalog_enabled' => env('ASAXIY_CATALOG_ENABLED', false),
+        'catalog_enabled' => filter_var(env('ASAXIY_CATALOG_ENABLED', false), FILTER_VALIDATE_BOOL),
     ],
 
     'postmark' => [

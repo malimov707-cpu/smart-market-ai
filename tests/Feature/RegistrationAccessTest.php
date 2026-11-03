@@ -70,6 +70,7 @@ it('allows unverified platform admins to access admin pages and image scanning',
 
     $this->post('/login', ['email' => $admin->email, 'password' => 'AdminPassword123456'])->assertRedirect('/admin');
     $this->actingAs($admin)->get('/admin')->assertOk();
+    $this->get('/ai')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Workspace')->where('section', 'ai'));
     $this->get('/market')->assertOk()->assertInertia(fn (Assert $page) => $page->component('PublicMarket')
         ->where('verification.verified', false)->where('verification.required', false)->where('verification.canUse', true));
     $this->postJson('/market/scan', ['image' => UploadedFile::fake()->image('product.jpg')])

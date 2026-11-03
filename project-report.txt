@@ -1,0 +1,370 @@
+SMART MARKET AI — LOYIHA HOLATI BO‘YICHA HISOBOT
+Hisobot sanasi: 2026-11-03 (Asia/Tashkent)
+Ishchi loyiha: /Users/uzmacbook/Herd/smart-market-ai
+
+MUHIM MAXFIYLIK ESLATMASI
+Bu hisobotga .env ichidagi parol, API kaliti, OAuth siri, bot tokeni yoki
+foydalanuvchi emaili kiritilmagan. .env chatga biriktirilgani sabab undagi
+SMTP, Google OAuth, Telegram va OpenRouter maxfiy qiymatlarini yangilash kerak.
+.env faylini chatga qayta yubormang.
+
+1. QISQA XULOSA
+
+Loyiha Laravel + React asosidagi, O‘zbekiston bozor narxlarini qidirish va
+solishtirish platformasi. MILESTONE 0 stabilizatsiyasi avvalgi tekshiruvda
+tasdiqlangan. MILESTONE 1 dizayn poydevori, MILESTONE 2 esa mavjud dalillardan
+foydalanadigan admin command center bilan davom ettirildi. Admin bo‘yicha
+fokuslangan Laravel va desktop/mobile browser testlari o‘tdi. To‘liq browser
+suite yakunlanmagan; qo‘shimcha operations/navigation testi command menu’dan
+keyingi sarlavhani topolmadi. PostgreSQL tekshiruvi yo‘q. Loyiha
+production’ga tayyor deb hisoblanmasligi kerak.
+
+MILESTONE 1 — DIZAYN TIZIMI: LOKAL TEKSHIRILDI
+- Rang, shrift, spacing, radius, elevation va motion tokenlari Tailwind CSS 4
+  `@theme` hamda semantic CSS variables orqali markazlashtirildi.
+- Admin, business va personal sahifalar uchun tajriba konteksti ajratildi;
+  dark/light palitralar, kontrastli active navigation va common surface’lar
+  shu kontekstga moslashtirildi.
+- Mobil menyuga expanded/controls semantikasi, yopish scrimi va reduced-motion
+  qoidalari qo‘shildi.
+- Desktop/mobile market va admin navigatsiyasi hamda mavzu almashinuvi
+  tekshirildi; Playwright 8/8, rasm qidiruv ekranining desktop/mobile
+  tekshiruvlari 2/2 o‘tdi. Ekran suratlari ko‘zdan kechirildi.
+- Bu dizayn tizimining poydevori; barcha admin/business modullarining
+  individual UX redesign’i hali yakunlanmagan.
+
+MILESTONE 2 — ADMIN COMMAND CENTER: LOKAL TEKSHIRILDI
+- Admin overview endi foydalanuvchi, tashkilot, mahsulot, yetkazib beruvchi,
+  takliflar, supplier verifikatsiyasi, narx review navbati, import va import
+  AI-ekstraksiya urinishlari bo‘yicha real hisoblarni ko‘rsatadi.
+- Foydalanuvchi, tashkilot va mahsulotlar, yakunlangan importlar hamda import
+  AI-ekstraksiyalari uchun 14 kunlik UTC trendlar qo‘shildi.
+- Narx review navbati faqat platforma scope’i, offer uchun eng so‘nggi
+  `created_at DESC, id DESC` holati va muddati tugamagan takliflardan hisoblanadi.
+- Yaqindagi faollik audit, xavfsizlik, import, narx review va supplier
+  verifikatsiya yozuvlaridan olinadi; maxfiy konfiguratsiya qiymatlari
+  ko‘rsatilmaydi.
+- Ommaviy manbalar holati faqat mavjud cache/error yozuvlarini o‘qiydi; admin
+  sahifani ko‘rsatish uchun internetga murojaat qilmaydi. Cache mavjudligi
+  provider hozir ishlayotganini anglatmaydi.
+- Scheduler heartbeat mavjud emasligi “noma’lum” deb, platforma notification
+  delivery yo‘qligi “mavjud emas” deb ko‘rsatiladi. Soxta nol/health holati
+  kiritilmadi. Admin middleware, user-management va mavjud operations oqimlari
+  saqlandi; schema migration yoki biznes ma’lumoti o‘zgartirilmadi.
+- 15 ta admin feature testi 15/15 o‘tdi (132 assertion). TypeScript, Vite build
+  va Pint o‘tdi. Fokuslangan Playwright admin overview testi desktop/mobile
+  bo‘yicha 2/2 o‘tdi.
+- Operations va keyboard navigation testi qo‘shilgan 4-testli browser
+  tekshiruvda overview testi 2/2 o‘tdi. Operations sahifasi va AI sozlama
+  yozuvi ko‘rindi, ammo “Xarid intellekti”ga o‘tishda server 403 qaytardi.
+  Sabab: admin email-tasdiq middleware istisnosidan o‘tsa ham,
+  OrganizationPolicy `view` huquqida barcha adminlardan email tasdig‘ini
+  talab qilgan. Policy endi faol platforma adminiga (email tasdiqlanmagan
+  bo‘lsa ham) global view huquqini beradi; oddiy user uchun email tasdig‘i,
+  admin uchun esa faol hisob talabi saqlanadi. Regression testi qo‘shildi.
+  Shu operations + keyboard navigation testi desktop/mobile bo‘yicha 2/2,
+  birlashtirilgan admin overview va operations testlari 4/4 o‘tdi. To‘liq
+  browser suite qayta bajarilmadi.
+- Admin review/verification amallarini boshqarish, scheduler monitoringi va
+  platforma notification markazi bu o‘zgarishda yaratilmagan; ularga
+  tayanch bo‘ladigan ayrim capability’lar ilovada mavjud emas.
+
+Email tasdig‘i kod bilan emas, havola bilan ishlaydi. SMTP serverga ulanish va
+autentifikatsiya tekshiruvi o‘tdi, ammo Gmail inboxiga yetkazish tasdiqlanmadi.
+Ilovaning APP_URL qiymati lokal .test domeniga ishora qiladi; bu email ichidagi
+havolani ommaviy HTTPS manzilga aylantirmaydi.
+
+2. TEXNOLOGIYALAR VA MUHIT
+
+- Backend: Laravel 13.39.0, PHP 8.4.22.
+- Frontend: React 19, Inertia 3, TypeScript 7, Vite 8, Tailwind CSS 4.
+- Baza: SQLite.
+- Runtime: local; debug yoqilgan.
+- APP_URL: smart-market-ai.test (lokal host).
+- Route’lar: jami 102 (46 GET, 55 POST, 1 DELETE).
+- Joriy worktree: 42 ta o‘zgargan tracked fayl, 11 ta untracked yo‘l. Bularning
+  katta qismi oldingi ishlar; ushbu admin overview uchun 2 ta yangi PHP fayl
+  qo‘shildi va oldindan o‘zgargan admin/UI/test fayllariga qo‘shimcha tahrir
+  kiritildi.
+- .env Git tomonidan ignore qilinadi; maxfiy qiymatlar hisobotga olinmadi.
+
+3. AMALDAGI FUNKSIYALAR
+
+Ommaviy market:
+- Mahsulot nomi bilan bozor kataloglaridan qidirish.
+- Korzinka va qurilish kataloglari, StatUz rasmiy o‘rtacha narxlari kabi
+  manbalar bilan ishlash.
+- Manba holati, eskirganligi va qamrov cheklovlarini ko‘rsatish.
+- Asaxiy katalogi hozir o‘chiq.
+
+AI va rasm:
+- Rasm yoki kameradan mahsulot nomzodini aniqlash.
+- Bir nechta mahsulot ko‘ringan suratni elementlarga ajratish imkoniyati.
+- AI tanishi mahsulotni topishga yordam beradi; narx AI’dan uydirilmaydi.
+- Ommaviy katalog narxi faqat katalog manbasi bo‘lsa ko‘rsatiladi.
+
+Ichki kataloglar:
+- FayzTools JSON import yo‘li mavjud; oxirgi importda 132 yozuv kiritilgan.
+- FayzTools importi ichida “Ножи для триммеров”ga aloqador mahsulotlar bor.
+- AI snapshotida so‘rovga mos katalog mahsulotlari, ID/SKU, narx, supplier va
+  supplier tasdiqlash holatini berish uchun o‘zgarish kiritilgan.
+- FayzTools supplieri tasdiqlanmagan holatda qoladi; tizim bu holatni yashirmaydi.
+- Approved Catalog JSON ichida 68 mahsulot import qilingan.
+- Import vaqti observed_at sifatida belgilanadi; bu qiymat ishonchli, hozirgi
+  sotuvchi narxini qayta kuzatish dalili sifatida qabul qilinmasligi kerak.
+
+Ish maydoni va admin:
+- Katalog, CSV/XLSX import, import tekshirish/tasdiqlash, narx solishtirish,
+  tahlil, eksport va tekshiruv oqimlari bor.
+- Ko‘p tashkilotli tarixiy ma’lumotlar organization_id bilan saqlanadi.
+- Admin global eski partition ma’lumotlarini ko‘ra oladi; public user va admin
+  funksiyalari bir xil emas.
+
+Hisob va integratsiyalar:
+- Email/parol, Google OAuth va Telegram login oqimlari mavjud.
+- Hisobni tasdiqlash va parol tiklash email bildirishnomalaridan foydalanadi.
+- AI Chat va rasm tanish OpenRouter sozlamalariga bog‘liq.
+- Runtime diagnostikasida SMTP, Google OAuth, Telegram va OpenRouter sozlamalari
+  mavjudligi tasdiqlandi; maxfiy qiymatlar chop etilmadi. Bu live xizmatlar
+  to‘liq ishlayotganini isbotlamaydi.
+
+4. GMAIL TASDIQLASH OQIMI
+
+Kod oqimi:
+- VerificationController email tasdiqlash xabarini yuboradi.
+- User modeli Laravel VerifyEmail bildirishnomasi orqali emailga tasdiqlash
+  havolasi yuboradi; bu 6 xonali kod emas.
+- /email/verification-notification endpointi daqiqasiga 3 marta cheklangan.
+- VerifyEmail sahifasi emaildagi havolani ochishni kutadi.
+
+Tekshiruv dalillari:
+- SMTP hostga TCP ulanishi muvaffaqiyatli.
+- STARTTLS aloqasi ochildi va server sertifikati ko‘rindi.
+- SMTP login/autentifikatsiyasi muvaffaqiyatli; test email yubormadi.
+- Ilova logida tasdiqlash endpointidan keyin 302 qaytgan. Bu browser redirect
+  natijasi bo‘lib, Gmail inboxiga yetkazilganining isboti emas.
+- Bazada 2026-10-31 dagi bitta verification.mail_failed hodisasi bor.
+- SPF TXT yozuvi bor va unda server IP ko‘rsatilgan.
+- Tekshiruv vaqtida _dmarc.bestartapp.uz topilmadi.
+- Tekshirilgan odatiy DKIM selectorlarida yozuv topilmadi; DKIM boshqa selector
+  nomida bo‘lishi mumkin, hostingdan aniq selector/qiymat olinishi kerak.
+- Mailer konfiguratsiyasida MAIL_EHLO_DOMAIN yo‘q; config/mail.php EHLO nomini
+  APP_URL hostidan oladi. Hozirgi APP_URL lokal .test.
+
+Xulosa:
+SMTP server bilan aloqa ishlayapti, lekin SMTP qabul qilgani Gmail inboxiga
+yetkazildi degani emas. Email havolasi smart-market-ai.test ga tuziladi; bu
+ommaviy internetdagi HTTPS domen emas. Gmail yetkazilishini hosting outbound
+mail logisiz yoki haqiqiy, ruxsatli test xatini tekshirmasdan aniq tasdiqlab
+bo‘lmaydi.
+
+Kerakli operator ishlari:
+1. Ilovani haqiqiy HTTPS domen bilan sozlash va APP_URLni shu domen qilish.
+2. Hosting panelidan DKIM selector/qiymatini olib DNS’ga qo‘shish.
+3. Domen uchun DMARC sozlash; SPF yozuvini takroran yaratmaslik.
+4. Hostingdan EHLO va PTR/reverse DNS mosligini tekshirtirish.
+5. Hosting mail delivery logida Gmail manziliga yuborilgan test xatini qidirish.
+6. Gmail Spam/All Mail va “Show original” orqali SPF/DKIM/DMARC natijasini
+   tekshirish.
+
+5. JORIY TEST VA BUILD NATIJALARI
+
+2026-11-03 joriy worktree’da stabilizatsiyadan keyin:
+
+- Laravel to‘liq test suite:
+  348 total, 334 passed, 0 failed, 14 skipped, 2,320 assertions.
+- Fokuslangan AI va market testlari:
+  53 passed, 405 assertions.
+- Ilgari yiqilgan Construction, ProductPages va ikkita StatUz testi alohida
+  qayta ishga tushirildi; to‘rttalasi ham o‘tdi.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.
+- `vendor/bin/pint --dirty --format agent`: passed.
+- `git diff --check`: passed.
+- Playwright `market.spec.ts`: 8 passed (desktop 4, mobile 4).
+- MILESTONE 1 shell/theme tekshiruvlari: 8 passed; market photo UI desktop/mobile:
+  2 passed. Bu fokuslangan tekshiruvlar to‘liq browser suite natijasi emas.
+- To‘liq Playwright suite 38 testga mo‘ljallangan edi; 21/38 jarayonida
+  to‘xtatildi. To‘xtatishgacha 9 ta admin, identity, phase-two/three va quality
+  UI testida xato kuzatildi. Suite yakunlanmagani sababli to‘liq browser
+  passed/failed soni yo‘q.
+- PHPUnit konfiguratsiyasi SQLite `:memory:` ishlatadi. PostgreSQL porti
+  localhost’da javob berdi va PHP `pdo_pgsql` kengaytmasi mavjud, lekin
+  maxsus izolyatsiyalangan PostgreSQL test bazasi aniqlanmadi; noma’lum
+  ma’lumotlar bazasiga migration qo‘llamaslik uchun PostgreSQL testlari
+  bajarilmadi.
+
+Stabilizatsiyada aniqlangan Laravel testlarining root cause va tuzatishlari:
+1. ConstructionCatalogTest olti ta manba tavsifini kutgan. `statuz` tavsifi
+   faqat StatUz qidiruvi bajarilgandagina qo‘shilayotgani uchun katalogda
+   beshta ko‘ringan. Manba holati kartochkasi saqlanib, faqat mos bo‘limda
+   filtrlanadigan avvalgi shaffof kontrakt tiklandi; Asaxiy testi manba
+   tartibining raqamli indeksiga emas, `id=asaxiy`ga qaraydi. Asaxiy o‘chiq
+   holatda qoladi, soxta manba qo‘shilmadi.
+2. ProductPagesTest fixture’ida faqat Korzinka manbasi bo‘lgan. Amaldagi
+   insight qoidasi narxlar farqini hisoblash uchun bir xil mahsulot/birlik
+   bo‘yicha kamida ikki manba talab qiladi; shu sabab `insight.best` to‘g‘ri
+   ravishda null bo‘lgan. Test fixture’iga yangiligi aniq TezQur taklifi
+   qo‘shildi; ilova soxta eng yaxshi narx chiqarmaydi.
+3–4. StatUz sahifa testlarida Inertia SSR testing muhitida yoqilgan edi.
+   SSR transporti `https://smart-market-ai.test:5173/__inertia_ssr` ga testda
+   fake qilinmagan POST yuborib, `StrayRequestException` va HTTP 500 bergan.
+   Faqat shu ikki testda SSR o‘chirildi; HTTP fake va stray-request himoyasi
+   saqlandi, production SSR konfiguratsiyasi o‘zgartirilmadi.
+
+TypeScript’dagi ikki xatoning bitta sababi: `money()` decimal string qabul
+qiladi, savatcha satri va yig‘indisi esa `number` edi. Savatcha qiymatlari endi
+floating point o‘rniga integer minor-unit `bigint`da hisoblanadi va formatter
+uchun ikki xonali decimal stringga aylantiriladi. `any`, unsafe cast yoki
+TypeScript tekshiruvini o‘chirish ishlatilmadi.
+
+Playwright’ni ishga tushirishdagi qo‘shimcha test-harness sababi: Playwright
+`webServer` pluginini `globalSetup`dan oldin ishga tushiradi; bo‘sh vaqtinchalik
+SQLite fayli oldindan yaratilmagani uchun Laravel app boot vaqtida chiqib
+ketardi. Faqat izolyatsiyalangan browser DB fayli oldindan yaratiladigan va
+setup uning bo‘shligini tekshiradigan qilindi. Joriy browser 8-testli bozor
+tekshiruvlari desktop va mobile’da o‘tdi.
+
+14 test skip qilingan; qaysi muhitga tegishli ekanini test runner natijasidan
+alohida ko‘rish kerak. Skiplar passed deb sanalmaydi.
+
+6. PRODUCTION TAYYORLIGI
+
+Loyiha production release uchun hozircha NOT READY:
+- Real Gmail inbox delivery tasdiqlanmagan.
+- Ommaviy HTTPS staging va production URL sinovi yo‘q.
+- Hozirgi lokal konfiguratsiyada debug yoqilgan.
+- Production queue worker va schedulerning uzluksiz ishlashi tasdiqlanmagan.
+- Monitoring va tashqi alert delivery tasdiqlanmagan.
+- Shifrlangan offsite backup, restore va RPO/RTO mashqi tasdiqlanmagan.
+- Izolyatsiyalangan PostgreSQL regression testi, yuklama testi va rollback
+  rehearsal bo‘yicha yangi joriy dalil yo‘q.
+- To‘liq browser suite bajarilmagan; 9 ta browser UI xatosi kuzatildi.
+
+README va readiness hujjatlarida oldingi sana bilan qayd qilingan ayrim
+tekshiruvlar mavjud. Ular tarixiy dalil; 2026-11-03 dagi joriy worktree
+tekshiruvini almashtirmaydi. Ayniqsa readiness hujjatidagi eski “mail log,
+AI unavailable” qaydi joriy runtime konfiguratsiyasiga mos kelmasligi mumkin.
+
+7. TAVSIYA ETILADIGAN USTUVORLIK
+
+1. Fokuslangan yangi admin overview browser testi o‘tgan bo‘lsa-da, to‘liq
+   browser suite’ni qayta ishga tushirish va Command Menu’dan AI sahifasiga
+   o‘tishdagi tasdiqlanmagan xatoni alohida tekshirish.
+2. PostgreSQL uchun alohida, testga mo‘ljallangan va disposable baza
+   tasdiqlangandan keyingina kritik DB testlarini ishga tushirish.
+3. Haqiqiy HTTPS domen va email DNS autentifikatsiyasini hosting operatori bilan
+   sozlash; ruxsatli test Gmail manziliga nazorat xatini yuborish.
+4. Stagingda worker, scheduler, monitoring, backup/restore va rollbackni
+   tasdiqlamaguncha production deploy qilmaslik.
+5. .env chatga biriktirilgani sabab undagi credentiallarni operator orqali
+   yangilash; yangi qiymatlarni chatga yoki repository’ga kiritmaslik.
+
+8. HISOBOT CHEGARALARI
+
+- Bu hisobot repository, local runtime, test runner va DNS/SMTP connectivity
+  tekshiruvlariga asoslangan.
+- PostgreSQL serverga port darajasida ulanish tekshirildi, ammo PostgreSQL’da
+  test yoki migration bajarilmadi.
+- Gmail mailboxiga kirilmadi va haqiqiy xat yuborilmadi.
+- Production yoki staging serverga deploy qilinmadi.
+- Tashqi providerlarning ichki delivery loglariga kirish bo‘lmadi.
+- Hisobotda .env qiymatlari, kalitlar, parollar, email manzillar va tokenlar
+  keltirilmagan.
+
+9. OPERATOR UCHUN CREDENTIAL ROTATION RO‘YXATI
+
+`.env` faylini qayta yubormang va bu qiymatlarni chatga yoki repository’ga
+ko‘chirmang. Provider panelidan yangi credential yarating, ilova konfiguratsiyasi
+va secret store’ni yangilang, so‘ng eski credentialni bekor qiling:
+
+- SMTP login/paroli yoki mail provider API credentiali.
+- Google OAuth client secret.
+- Telegram bot tokeni.
+- OpenRouter API kaliti.
+- `.env` ichida bo‘lgan har qanday database, cloud/object storage, webhook yoki
+  boshqa provider credentiali.
+- APP_KEY ham oshkor bo‘lgan bo‘lsa, shifrlangan ma’lumotlar va session’lar
+  ta’sirini baholab, rejalashtirilgan tartibda aylantiring; avtomatik
+  almashtirmang.
+
+10. MILESTONE 3 — MAHSULOT MOSLIGI: LOKAL TEKSHIRILDI
+
+- Oldingi savat hisoblagichi har bir surat nomzodiga eng yuqori ball olgan
+  mahsulotni, ball nol bo‘lsa ham, avtomatik biriktirishi mumkin edi. Endi
+  mos nomzod topilmasa narx biriktirilmaydi; savat summasi uchun foydalanuvchi
+  katalog mahsulotini aniq tanlab tasdiqlashi kerak.
+- Mahalliy katalog qidiruvi alias, variant atributi, mahsulot qadoq miqdori va
+  8–14 raqamli barcode’ning aniq mosligini hisobga oladi. Frontendga barcode va
+  alias qiymatlari emas, faqat moslik dalili yuboriladi; ichki `search_text`
+  ham public natijadan chiqariladi.
+- Suratdagi nomzodlar mahsulot nomi, qidiruv atamalari, brend/model va qadoq
+  matni bilan deterministik tartiblanadi. Ko‘rsatilgan kuchli/qisman/zaif
+  darajalar model ehtimolligi emas. Qadoq yoki brend zid bo‘lsa, moslik zaif
+  deb ko‘rsatiladi. Narx xulosasi va eng arzon belgisi faqat aynan tasdiqlangan
+  mahsulot, birlik va manba mos kelganda ochiladi.
+- Savatchada tasdiqlangan qadoq ko‘rsatiladi; tasdiqlanmagan nomzod narxi
+  umumiy summaga kiritilmaydi. Desktop va mobile browser testlari 12/12 o‘tdi.
+- `tests/Feature/PublicMarketTest.php`: 12 test, 92 assertion o‘tdi. TypeScript
+  (`npm run typecheck`), Vite production build, Pint (`--dirty`) va
+  `git diff --check` o‘tdi.
+- Faqat ommaviy market browser fayli tekshirildi; to‘liq browser suite va
+  to‘liq Laravel suite qayta bajarilmadi. Test bazasi SQLite; PostgreSQL’da
+  tekshiruv bu bosqichda bajarilmadi. Production release tasdiqlanmagan.
+- Rasmning o‘zidan barcode o‘qish va turli katalog yozuvlarini deduplikatsiya
+  qilish amalga oshirilmadi. Tashqi kataloglarda paket/variant metadata
+  bo‘lmasligi mumkin; bunday holatda tizim qadoq mosligini tasdiqlangan deb
+  ko‘rsatmaydi.
+
+11. MILESTONE 4 — NARX YANGILIGI: LOKAL TEKSHIRILDI
+
+- Tashkilot katalogidagi public narx kartalari endi so‘rov vaqti bilan emas,
+  taklifning haqiqiy `observed_at` hamda `expires_at` qiymatlari bilan
+  ko‘rsatiladi. Yetti kundan eski yoki muddati tugagan taklif yangidek
+  belgilanmaydi; muddati ko‘rsatilmagan taklif uchun muddati taxmin qilinmaydi.
+- Approved Catalog va FayzTools importlari `observed_at`ni import vaqtida
+  yaratgani sababli bu vaqt sotuvchi kuzatuvi sifatida qabul qilinmaydi:
+  narxlari saqlanadi, lekin tekshirilgan vaqt ko‘rsatilmaydi va freshness
+  “noma’lum” bo‘ladi.
+- Ommaviy kartalar yangi tekshirilgan, eskirgan, muddati tugagan, tarixiy
+  rasmiy o‘rtacha yoki kuzatuv vaqti noma’lum holatlarini alohida belgilaydi.
+  Stat.uz qiymatlari joriy sotuvchi taklifi emas, kuzatuv davri bilan
+  ko‘rsatiladi. Yorliqlar light mode’da ham o‘qilishi tekshirildi.
+- Rasm qidiruvidagi narx xulosasi market manbalari eskirgan, muvaffaqiyatsiz
+  yoki qisman bo‘lsa ko‘rsatilmaydi; tasdiqlanmagan yoki eskirgan ma’lumotdan
+  “eng yaxshi narx” yasalmaydi.
+- `tests/Feature/PublicMarketTest.php`: 16/16 test, 113 assertion. Market,
+  product sahifalari va workflow bo‘yicha fokuslangan Laravel tekshiruvi:
+  61/61 test, 681 assertion. Public market Playwright: desktop/mobile’da
+  14/14. `npm run typecheck`, `npm run build`, Pint va `git diff --check`
+  muvaffaqiyatli.
+- Bu tekshiruvlar lokal SQLite muhitida bajarildi. To‘liq Laravel/browser
+  suitesi va PostgreSQL tekshiruvi bu bosqichda bajarilmadi; deployment yoki
+  production tayyorligi tasdiqlanmagan.
+
+12. MILESTONE 5 — NARX KUZATUVI: SOZLAMALAR VA INBOX
+
+- Market sahifasidagi takroriy kuzatuv shakllari bitta sozlama paneliga
+  birlashtirildi. Kuzatuv 1%, 3%, 5% yoki 10% chegarada yaratiladi; mavjud
+  kuzatuv qayta yuborilganda threshold va email tanlovi yangilanadi. Email
+  tanlovi berilmasa mavjud email sozlamasi saqlanadi; yangi kuzatuv ilova
+  ichidagi kanal bilan boshlanadi.
+- Qidiruv nomi katta-kichik harfda farq qilsa ham bitta kuzatuv hisoblanadi.
+  Kunlik takroriy xabar deduplikatsiyasi ham shu kanonik kalitdan foydalanadi.
+- Email ixtiyoriy; SMTP jo‘natishni qabul qilsa ham inboxga yetkazilgani
+  tasdiqlanmaydi. Jo‘natish natijasi bildirishnoma `email_status` maydonida
+  qayd etiladi. Telegram, quiet hours va muvaffaqiyatsiz emailni qayta
+  jo‘natish bu bosqichga kirmadi.
+- Tashkilotga bog‘lanmagan global market bildirishnomalari endi tegishli
+  foydalanuvchining umumiy inboxida ko‘rinadi, o‘qilgan deb belgilanadi va
+  unread hisobiga kiradi; boshqa foydalanuvchilar ma’lumoti user scope bilan
+  ajratilgan.
+- Email tasdiqlanmagan platform admini ilova ichidagi kuzatuvdan foydalana
+  oladi, lekin email kanalini tanlay olmaydi. Oddiy tasdiqlanmagan foydalanuvchi
+  kuzatuv qo‘sha olmaydi.
+- `PriceWatchTest`, `NotificationsAnalyticsTest` va `AlertDeliveryTest`:
+  22/22 test, 126 assertion. Public market Playwright desktop/mobile: 14/14.
+  `npm run typecheck`, `npm run build`, Pint va `git diff --check` o‘tdi.
+- Tekshiruvlar SQLite’da bajarildi; PostgreSQL va to‘liq Laravel/browser
+  suitesi bu bosqichda qayta bajarilmadi. SMTP provayderga haqiqiy xat yuborish,
+  inbox delivery va production tayyorligi tasdiqlanmadi.

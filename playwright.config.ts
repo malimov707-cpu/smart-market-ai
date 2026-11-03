@@ -28,5 +28,10 @@ export default defineConfig({
         { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
         { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
     ],
-    webServer: { command: `php artisan serve --host=127.0.0.1 --port=${browserPort} --no-reload`, url: `${browserEnvironment.APP_URL}/up`, reuseExistingServer: false, env: browserEnvironment },
+    webServer: {
+        command: `node --input-type=commonjs -e "require('node:fs').writeFileSync(process.env.DB_DATABASE, '', { flag: 'wx' })" && php artisan serve --host=127.0.0.1 --port=${browserPort} --no-reload`,
+        url: `${browserEnvironment.APP_URL}/up`,
+        reuseExistingServer: false,
+        env: browserEnvironment,
+    },
 });

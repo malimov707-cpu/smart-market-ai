@@ -39,8 +39,8 @@ test('administrator views platform operations and navigates to market analysis w
     const dialog = page.getByRole('dialog', { name: 'Tezkor navigatsiya' });
     await dialog.getByLabel('Sahifalarni qidirish').fill('Xarid intellekti');
     await dialog.getByLabel('Sahifalarni qidirish').press('Enter');
-    await expect(page.getByRole('heading', { name: 'Xarid intellekti', exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/ai$/);
+    await expect(page.getByRole('heading', { name: 'Xarid intellekti', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await page.screenshot({ path: test.info().outputPath('decision-desk.png'), fullPage: true });
 });
