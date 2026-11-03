@@ -61,7 +61,7 @@ class PublicMarketCatalog
             $groups[] = $asaxiy['products'];
             $total += $asaxiy['total'];
         }
-        $needles = array_values(array_filter(array_map($this->construction->normalize(...), array_slice([$query, ...$alternatives], 0, 4))));
+        $needles = array_values(array_filter(array_map($this->construction->normalize(...), array_slice([$query, ...$alternatives], 0, 6))));
         foreach (ConstructionCatalog::SOURCES as $id => $name) {
             $snapshot = $this->construction->snapshot($id);
             $checked = $snapshot['checked_at'];

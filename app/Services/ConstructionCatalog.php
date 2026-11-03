@@ -10,6 +10,7 @@ use DOMNode;
 use DOMXPath;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ConstructionCatalog
@@ -38,6 +39,7 @@ class ConstructionCatalog
                 return count($rows);
             } catch (\Throwable $error) {
                 Cache::put(self::key($source).':error', now()->toISOString(), 86400);
+                Log::warning('Construction catalog refresh failed.', ['source' => $source, 'exception' => $error]);
                 throw new RuntimeException(self::SOURCES[$source].' narxlarini yangilab bo‘lmadi. Oldingi kuzatuv saqlandi.', previous: $error);
             }
         });

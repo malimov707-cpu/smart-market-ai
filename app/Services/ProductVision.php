@@ -39,7 +39,7 @@ class ProductVision
         $validator = Validator::make(is_array($data) ? $data : [], [
             'name' => ['present', 'nullable', 'string', 'max:120'], 'brand' => ['present', 'nullable', 'string', 'max:100'],
             'package' => ['present', 'nullable', 'string', 'max:100'], 'uncertain' => ['required', 'boolean'],
-            'search_terms' => ['required', 'array', 'max:3'], 'search_terms.*' => ['string', 'max:80'],
+            'search_terms' => ['required', 'array', 'max:5'], 'search_terms.*' => ['string', 'max:80'],
         ]);
         if ($validator->fails() || empty($data['name'])) {
             throw new AssistantFailure('Mahsulot tanilmadi. Yorliqni yaqinroq ko‘rsating yoki nomini yozing.', 422);

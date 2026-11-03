@@ -22,9 +22,11 @@ class PublicMarketController extends Controller
     public function index(Request $request, PublicMarketCatalog $catalog, OpenRouterAssistant $assistant, PriceTrendHistory $trends): Response
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'],
+            'terms' => ['sometimes', 'array', 'max:5'], 'terms.*' => ['string', 'max:80'],
             'department' => ['nullable', Rule::in(['all', 'grocery', 'construction', 'general'])],
             'source' => ['nullable', Rule::in(['all', 'korzinka', 'tezqur', 'kslux', 'alstroy', 'asaxiy', 'statuz'])]]);
         $query = $filters['q'] ?? '';
+        $searchTerms = array_values(array_filter($filters['terms'] ?? []));
         $deal = $query === '' ? null : $trends->deal($query);
         $user = $request->user();
         $verified = $user->hasVerifiedEmail();
@@ -32,12 +34,13 @@ class PublicMarketController extends Controller
 
         return Inertia::render('PublicMarket', [
             'verification' => ['verified' => $verified, 'required' => ! $user->is_platform_admin, 'canUse' => $canUseVerifiedFeatures,
-                'mailAvailable' => AccountMail::available()], 'filters' => ['q' => $query, 'department' => $filters['department'] ?? 'all', 'source' => $filters['source'] ?? 'all'],
+                'mailAvailable' => AccountMail::available()], 'filters' => ['q' => $query, 'terms' => $searchTerms,
+                    'department' => $filters['department'] ?? 'all', 'source' => $filters['source'] ?? 'all'],
             'deal' => $deal,
             'trend' => $query === '' ? null : ['series' => $trends->series($query), 'change' => $trends->change($query)],
             'watch' => $query === '' ? null : ['watching' => AppNotification::where('user_id', $user->id)
                 ->where('event_type', 'market_watch_subscribed')->where('metadata->query', $query)->exists(), 'threshold' => '5'],
-            'market' => $catalog->search($query, [], $filters['department'] ?? 'all', $filters['source'] ?? 'all', true),
+            'market' => $catalog->search($query, $searchTerms, $filters['department'] ?? 'all', $filters['source'] ?? 'all', true),
             'assistant' => $assistant->availability()]);
     }
 

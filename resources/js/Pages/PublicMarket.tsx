@@ -15,7 +15,7 @@ type Insight = { query: string; best: { name: string; price: string; currency: s
 type Trend = { series: { date: string; price: number }[]; change: number | null };
 type Deal = { query: string; price: number; percent: number; previous_average: number };
 type Watch = { watching: boolean; threshold: string };
-export default function PublicMarket({ market, filters, assistant, verification, trend, watch, deal }: { verification: { verified: boolean; required: boolean; canUse: boolean; mailAvailable: boolean }; market: Market; filters: { q: string; department: string; source: string }; assistant: AssistantConfig; trend: Trend | null; watch: Watch | null; deal: Deal | null }) {
+export default function PublicMarket({ market, filters, assistant, verification, trend, watch, deal }: { verification: { verified: boolean; required: boolean; canUse: boolean; mailAvailable: boolean }; market: Market; filters: { q: string; terms: string[]; department: string; source: string }; assistant: AssistantConfig; trend: Trend | null; watch: Watch | null; deal: Deal | null }) {
     const catalogGroups = market.sources
         .filter(source => filters.department === 'all' || source.department === filters.department)
         .filter(source => filters.source === 'all' || source.id === filters.source)
@@ -118,7 +118,12 @@ export default function PublicMarket({ market, filters, assistant, verification,
             });
             setRecognition(response.recognition);
             setInsight(response.insight ?? null);
-            router.get('/market', { q: response.recognition.search_terms[0] || response.recognition.name, department: filters.department, source: filters.source }, { preserveState: true, preserveScroll: true });
+            router.get('/market', {
+                q: response.recognition.name,
+                terms: response.recognition.search_terms,
+                department: 'all',
+                source: 'all',
+            }, { preserveState: true, preserveScroll: true });
         } catch { if (!handled) setError('Tahlil bajarilmadi. Boshqa surat bilan urinib ko‘ring.'); }
     }
     return <Layout title="Toshkent narxlari" action={<span className="market-location"><MapPin size={15} />Toshkent shahri va viloyati</span>}>
@@ -133,7 +138,7 @@ export default function PublicMarket({ market, filters, assistant, verification,
         {deal && <section className="deal-banner" role="status" aria-label="Xarid oynasi"><span className="deal-flame">🔥</span><div><strong>Xarid oynasi: {deal.query} −{deal.percent}%</strong><p>Eng arzon narx o‘rtacha {deal.previous_average.toLocaleString('uz-UZ')} so‘mdan <b>{deal.price.toLocaleString('uz-UZ')} so‘m</b>ga tushdi. Bugun xarid uchun yaxshi kun.</p></div><Link className="button light" href={`/market/product/${deal.query.replace(/\s+/g, '-')}`}>Batafsil</Link></section>}
         {recognition && insight && <section className="panel insight-banner-deal" aria-label="Narx xulosasi"><div className="insight-deal-head"><span className="badge green">NARX FARQI TOPILDI</span><small>{insight.offers} ta taklif · {insight.sources.join(', ')}</small></div><div className="insight-deal-grid"><div><small>Eng arzon</small><strong>{money(insight.best.price)}<small> so‘m</small></strong><p>{insight.best.name}</p><span className="badge neutral">{insight.best.source_name}</span></div><div><small>Eng qimmat</small><strong>{money(insight.worst.price)}<small> so‘m</small></strong><p>{insight.worst.name}</p></div><div className="insight-deal-savings"><small>Bitta to‘g‘ri tanlov bilan tejaladi</small><strong>{money(insight.savings)}<small> so‘m</small></strong><span className="badge amber">−{insight.savings_percent}%</span></div></div><small className="insight-deal-note">Narxlar manba kataloglaridan olingan; qadoq va birlik farqi bo‘lishi mumkin.</small></section>}
         {recognition && <section className="recognition-result"><Camera size={23} /><div><small>{recognition.uncertain ? 'AI taxmini · tekshirib ko‘ring' : 'AI aniqlagan mahsulot · tekshirib ko‘ring'}</small><strong>{recognition.name}{recognition.brand ? ` · ${recognition.brand}` : ''}{recognition.package ? ` · ${recognition.package}` : ''}</strong><p>{recognition.uncertain ? 'AI rasmga qarab taxmin qildi. Mahsulot nomi yoki turi noto‘g‘ri bo‘lishi mumkin; kerak bo‘lsa, qidiruv maydonida nomini o‘zgartiring.' : 'Mahsulot nomi, brendi va qadoq hajmi mosligini tekshiring. Narxlar mos mahsulotlardan olinadi.'}</p></div><button aria-label="Tanish natijasini yopish" onClick={() => { setRecognition(null); setInsight(null); }}><X size={17} /></button></section>}
-        <nav className="market-departments" aria-label="Mahsulot yo‘nalishi">{[{ id: 'all', label: 'Barcha yo‘nalishlar' }, { id: 'grocery', label: 'Oziq-ovqat va kundalik' }, { id: 'construction', label: 'Qurilish mollari' }, { id: 'general', label: 'Elektronika, uy-ro‘zg‘or va boshqalar' }].map(item => <Link href={`/market?department=${item.id}${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ''}`} key={item.id} className={filters.department === item.id ? 'selected' : ''}>{item.label}</Link>)}</nav>
+        <nav className="market-departments" aria-label="Mahsulot yo‘nalishi">{[{ id: 'all', label: 'Barcha yo‘nalishlar' }, { id: 'grocery', label: 'Oziq-ovqat va kundalik' }, { id: 'construction', label: 'Qurilish mollari' }, { id: 'general', label: 'Elektronika, uy-ro‘zg‘or va boshqalar' }].map(item => <Link href={marketHref(item.id, 'all', filters.q, filters.terms)} key={item.id} className={filters.department === item.id ? 'selected' : ''}>{item.label}</Link>)}</nav>
 <section className="panel market-search-panel"><Form action="/market" method="get" options={{ preserveScroll: true }} className="market-search"><input type="hidden" name="department" value={filters.department} /><input type="hidden" name="source" value={filters.source} /><Search size={21} /><input name="q" aria-label="Bozor mahsulotini qidirish" placeholder="Mahsulot nomi: AirPods, telefon, sut yoki sement…" defaultValue={filters.q} key={filters.q} /><button className="button primary">Narxlarni topish</button></Form><div className="market-suggestions">{(filters.department === 'construction' ? ['Sement', 'Gipsokarton', 'Laminat', 'Germetik', 'Yelim'] : filters.department === 'general' ? ['Quloqchin', 'Telefon', 'Termos', 'Changyutgich', 'Kitob'] : ['Olma', 'Sut', 'Sement', 'Quloqchin', 'Telefon', 'Kitob']).map(name => <Link href={`/market?department=${filters.department}&q=${encodeURIComponent(name)}`} key={name}>{name}</Link>)}<Link href="/market/products" className="product-index-link">Barcha kuzatuvlar →</Link>{(filters.q || filters.source !== 'all') && <Link href={`/market?department=${filters.department}`}>Filtrlarni tozalash</Link>}</div></section>
         <div className="market-source-grid">{market.sources.filter(source => filters.department === 'all' || source.department === filters.department).map(source => {
             const details = source.official_average
@@ -142,6 +147,10 @@ export default function PublicMarket({ market, filters, assistant, verification,
                         ? `${source.count} ta mos mahsulot · jami ${source.dataset_count ?? 0} ta kuzatuv · ${marketPeriod(source.data_period)} oylik o‘rtacha`
                         : `${source.dataset_count ?? 0} ta tovar kuzatiladi · davr: ${marketPeriod(source.data_period)} · bu qidiruvga mos o‘rtacha narx yo‘q`
                     : 'Toshkent bozorlaridagi oylik rasmiy o‘rtacha narxlar'
+                : source.sync_failed
+                    ? source.checked_at
+                        ? `${source.count} ta oxirgi saqlangan taklif · manbadan yangilab bo‘lmadi`
+                        : 'Manbadan hozir javob yo‘q; tekshirilgan taklif mavjud emas'
                 : source.on_demand
                     ? !source.enabled
                         ? 'Manba shartlari tasdiqlanmagani uchun katalog hozircha o‘chirilgan.'
@@ -164,7 +173,7 @@ export default function PublicMarket({ market, filters, assistant, verification,
                 : !source.enabled && source.on_demand
                     ? 'Ruxsat kutilmoqda'
                     : source.sync_failed
-                        ? 'Manba xatosi'
+                        ? 'Manba javob bermadi'
                         : source.partial
                             ? 'Qisman qidiruv'
                             : source.stale
@@ -178,7 +187,7 @@ export default function PublicMarket({ market, filters, assistant, verification,
 
             return source.enabled === false
                 ? <section className="panel source-filter" key={source.id}>{card}</section>
-                : <Link className={`panel source-filter ${filters.source === source.id ? 'source-selected' : ''}`} href={`/market?department=${source.department}&source=${source.id}${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ''}`} key={source.id}>{card}</Link>;
+                : <Link className={`panel source-filter ${filters.source === source.id ? 'source-selected' : ''}`} href={marketHref(source.department, source.id, filters.q, filters.terms)} key={source.id}>{card}</Link>;
         })}{filters.department !== 'construction' && filters.department !== 'general' && <><section className="panel"><Store size={23} /><div><strong>Uzum Market</strong><small>Narx manbasi hali ulanmagan</small></div><span className="badge neutral">Ulanmagan</span></section><section className="panel"><MapPin size={23} /><div><strong>Dehqon bozorlari</strong><small>Jonli sotuvchi ma’lumoti hali yo‘q</small></div><a href="https://toshstat.uz/uz/rasmiy-statistika/prices-and-indexes-2" target="_blank" rel="noreferrer" className="badge neutral">Rasmiy o‘rtacha <ArrowUpRight size={11} className="inline" /></a></section></>}</div>
         <div className="market-status"><span><Clock3 size={14} />{market.checked_at ? `Eng so‘nggi manba tekshiruvi: ${timestamp(market.checked_at)}` : 'Katalog hali yuklanmagan'}</span><span>Korzinka: 5 daqiqa · qurilish: 15 daqiqa · Stat.uz: oylik o‘rtacha · Asaxiy: mahsulot qidirilganda</span></div>
         {(market.stale || market.sync_failed) && <p className="notice">{market.sync_failed
@@ -200,7 +209,7 @@ export default function PublicMarket({ market, filters, assistant, verification,
                 <header className="market-catalog-heading">
                     <div className={`market-catalog-icon source-${source.id}`}><Store size={18} /></div>
                     <div><h3 id={`catalog-${source.id}`}>{source.name} katalogi</h3><p>{source.products.length} ta mos mahsulot</p></div>
-                    {filters.source !== source.id && <Link className="market-catalog-all" href={`/market?department=${source.department}&source=${source.id}${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ''}`}>Faqat {source.name} <ArrowUpRight size={14} /></Link>}
+                    {filters.source !== source.id && <Link className="market-catalog-all" href={marketHref(source.department, source.id, filters.q, filters.terms)}>Faqat {source.name} <ArrowUpRight size={14} /></Link>}
                 </header>
                 <div className="public-price-grid">{source.products.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insight} />)}</div>
             </section>)}
@@ -209,7 +218,7 @@ export default function PublicMarket({ market, filters, assistant, verification,
                 <div className="public-price-grid">{uncategorizedProducts.map(product => <PublicPriceCard key={product.key ?? product.id} product={product} insight={insight} />)}</div>
             </section>}
         </div>
-        {!market.products.length && <section className="panel intelligence-empty"><Search size={30} /><h2>{market.checked_at ? 'Bu qidiruv uchun katalogda mos taklif topilmadi.' : 'Tanlangan manbaning katalogi yuklanishi kutilmoqda.'}</h2><p>{market.checked_at ? 'Bu mahsulot bozorda yo‘q degani emas. Umumiyroq nom bilan qidiring; katalog barcha assortimentni qamramaydi.' : 'Administrator market:sync orqali manbani yangilashi mumkin.'}</p></section>}
+        {!market.products.length && <section className="panel intelligence-empty"><Search size={30} /><h2>{market.checked_at ? 'Bu qidiruv uchun katalogda mos taklif topilmadi.' : 'Tanlangan manbaning katalogi yuklanishi kutilmoqda.'}</h2><p>{market.checked_at ? 'Bu mahsulot bozorda yo‘q degani emas. Umumiyroq nom bilan qidiring; katalog barcha assortimentni qamramaydi.' : 'Administrator market:sync orqali manbani yangilashi mumkin.'}</p>{market.sources.some(source => source.id === 'asaxiy' && source.enabled === false) && <p className="notice">AI suratdagi buyumni nomlaydi, lekin hozircha umumiy mahsulotlar uchun faol sotuvchi katalogi ulanmagan. Asaxiy katalogi foydalanish shartlari tasdiqlanmagani uchun o‘chiq; shu sabab telefon g‘ilofi, mebel kabi buyumlarga ishonchli sotuvchi narxi chiqmasligi mumkin.</p>}</section>}
         {market.total > 60 && <p className="notice">Dastlabki 60 ta natija ko‘rsatilgan. Qidiruvni aniqroq yozing.</p>}
         <p className="market-disclaimer">Narxlar so‘mda. Yetkazish narxi kiritilmagan. Aksiya shartlari, filial, nav, brend va qadoqqa qarab farq bo‘lishi mumkin. Sotuvchi narxlari butun Toshkent bozorining o‘rtacha narxi emas; rasmiy o‘rtachalar kuzatuv davri bilan ko‘rsatiladi.</p>
     </Layout>;
@@ -245,6 +254,16 @@ function PublicPriceCard({ product, insight }: { product: PublicPrice; insight: 
             <a className="decision-link" href={product.source_url} target="_blank" rel="noreferrer">{product.source_id === 'statuz' ? 'Rasmiy statistik manba' : 'Sotuvchida tekshirish'} <ArrowUpRight size={15} /></a>
         </div>
     </article>;
+}
+
+function marketHref(department: string, source: string, query: string, terms: string[]): string {
+    const params = new URLSearchParams({ department, source });
+    if (query) {
+        params.set('q', query);
+    }
+    terms.forEach(term => params.append('terms[]', term));
+
+    return `/market?${params.toString()}`;
 }
 
 function marketPeriod(period: string | null | undefined): string {

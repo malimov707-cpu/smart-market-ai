@@ -98,6 +98,9 @@ it('recognizes an image without accepting generated prices as real market eviden
 
         return $content[1]['type'] === 'image_url'
             && str_contains($instructions, 'tabiiy, grammatik jihatdan to‘g‘ri o‘zbek tilida va faqat lotin yozuvida')
+            && str_contains($instructions, 'mebel (stol, stul)')
+            && str_contains($instructions, 'telefon g‘ilofi')
+            && str_contains($instructions, 'phone case')
             && str_contains($instructions, 'g‘alati yoki uydirma so‘z ishlatmang')
             && str_contains($content[0]['text'], 'tushunarli, tabiiy o‘zbek lotin yozuvida')
             && $dimensions[0] === 427 && $dimensions[1] === 1024
@@ -105,6 +108,42 @@ it('recognizes an image without accepting generated prices as real market eviden
             && $request['provider']['sort'] === 'latency'
             && ! str_contains(json_encode($request['messages']), 'Current authorized platform snapshot');
     });
+});
+
+it('searches matching seller offers using all recognized product terms', function () {
+    [$user] = marketIdentity();
+    Cache::forever(KorzinkaCatalog::CACHE_KEY, [
+        'checked_at' => now()->toISOString(),
+        'products' => [[
+            'id' => 999,
+            'name' => 'Phone cover',
+            'search_text' => 'phone cover',
+            'price' => '50000.00',
+            'currency' => 'UZS',
+            'unit_label' => '1 dona',
+            'category' => 'Aksessuarlar',
+            'image' => null,
+            'valid_until' => now()->addDay()->toISOString(),
+            'card_required' => false,
+            'conditions' => '',
+            'source_url' => 'https://catalog.korzinka.uz/product/phone-cover',
+        ]],
+    ]);
+    Cache::forever(StatUzAveragePrices::CACHE_KEY, [
+        'checked_at' => now()->toISOString(),
+        'stale' => false,
+        'sync_failed' => false,
+        'partial' => false,
+        'data_period' => '2026-M09',
+        'products' => [],
+    ]);
+
+    $this->actingAs($user)->get('/market?q=unrelated&terms%5B%5D=wrong%20one&terms%5B%5D=wrong%20two&terms%5B%5D=wrong%20three&terms%5B%5D=wrong%20four&terms%5B%5D=phone%20cover')
+        ->assertOk()->assertInertia(fn (Assert $page) => $page->component('PublicMarket')
+        ->where('filters.q', 'unrelated')
+        ->where('filters.terms.4', 'phone cover')
+        ->where('market.total', 1)
+        ->where('market.products.0.name', 'Phone cover'));
 });
 
 it('does not present a cheapest-price insight when the Asaxiy search was partial', function () {

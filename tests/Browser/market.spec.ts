@@ -50,11 +50,15 @@ test('photo recognition opens an honest catalogue search with official averages 
         return;
     }
     await page.route('**/market/scan', route => route.fulfill({ json: {
-        recognition: { name: 'Olma', brand: null, package: null, uncertain: true, search_terms: ['olma', 'яблоки'] },
+        recognition: { name: 'Olma', brand: null, package: null, uncertain: true, search_terms: ['olma', 'яблоки', 'apple'] },
         market: { products: [], total: 0, checked_at: null, stale: true },
     } }));
     await button.click();
-    await expect(page).toHaveURL(url => url.pathname === '/market' && url.searchParams.get('q') === 'olma');
+    await expect(page).toHaveURL(url => url.pathname === '/market'
+        && url.searchParams.get('q') === 'Olma'
+        && url.searchParams.get('department') === 'all'
+        && url.searchParams.get('source') === 'all'
+        && [...url.searchParams.entries()].some(([key, value]) => key.startsWith('terms') && value === 'apple'));
     await expect(page.getByText('AI taxmini · tekshirib ko‘ring', { exact: true })).toBeVisible();
     await expect(page.getByText('AI rasmga qarab taxmin qildi. Mahsulot nomi yoki turi noto‘g‘ri bo‘lishi mumkin; kerak bo‘lsa, qidiruv maydonida nomini o‘zgartiring.', { exact: true })).toBeVisible();
     await expect(page.locator('.market-source-grid .source-filter').filter({ hasText: 'Milliy statistika' })).toBeVisible();
